@@ -2,8 +2,10 @@ import { useRef } from 'react'
 import { useAnimationFrame, useReducedMotion, useScroll } from 'motion/react'
 import { adaptive } from '../../content/copy'
 import { clamp, smooth } from '../../lib/math'
-import { FadeUp, LineReveal } from '../ui/Reveal'
+import { ClipReveal, DrawRule } from '../../motion/Reveal'
+import { MaskedText } from '../../motion/MaskedText'
 import { SectionHead } from '../ui/SectionHead'
+import { SectionNumeral } from '../ui/SectionNumeral'
 
 const W = 1000
 const H = 90
@@ -26,8 +28,9 @@ function pathFor(fn: (x: number) => number) {
 /**
  * Live diagram of active noise cancellation.
  * Row 1: ambient noise. Row 2: its inverse. Row 3: their sum.
- * `cancel` goes 0→1 as the diagram scrolls into view, so the third line
- * *becomes* flat while you watch — the section's whole argument in one gesture.
+ * `cancel` goes 0→1 as the diagram scrolls into view, so the third line *becomes*
+ * flat while you watch — the section's whole argument in one gesture.
+ * It only runs its animation loop while on screen.
  */
 function WaveDiagram() {
   const box = useRef<HTMLDivElement>(null)
@@ -35,9 +38,14 @@ function WaveDiagram() {
   const p1 = useRef<SVGPathElement>(null)
   const p2 = useRef<SVGPathElement>(null)
   const p3 = useRef<SVGPathElement>(null)
-  const { scrollYProgress } = useScroll({ target: box, offset: ['start 95%', 'start 45%'] })
+  const visible = useRef(false)
+  const { scrollYProgress } = useScroll({ target: box, offset: ['start 100%', 'start 68%'] })
 
   useAnimationFrame((time) => {
+    // cheap visibility test: skip all work when the diagram is off screen
+    const r = box.current?.getBoundingClientRect()
+    visible.current = !!r && r.bottom > 0 && r.top < window.innerHeight
+    if (!visible.current) return
     const t = reduce ? 0 : time / 1000
     const cancel = reduce ? 1 : smooth(clamp(scrollYProgress.get()))
     p1.current?.setAttribute('d', pathFor((x) => noise(x, t)))
@@ -54,18 +62,21 @@ function WaveDiagram() {
   return (
     <div ref={box} role="img" aria-label="Diagram: ambient noise plus its inverted copy sums to a flat line.">
       {rows.map((r, i) => (
-        <div key={r.key} className="grid grid-cols-[7.5rem_1fr] items-center gap-4 border-t border-silver/15 md:grid-cols-[11rem_1fr]">
-          <p className="label flex gap-3">
-            <span className="text-ice">{String(i + 1).padStart(2, '0')}</span>
-            <span className={i === 2 ? 'text-bone' : ''}>{r.text}</span>
-          </p>
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-12 w-full md:h-20" aria-hidden="true">
-            <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="var(--color-silver)" strokeOpacity="0.12" strokeDasharray="2 6" vectorEffect="non-scaling-stroke" />
-            <path ref={r.ref} fill="none" stroke={r.stroke} strokeWidth={r.width} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          </svg>
+        <div key={r.key}>
+          <DrawRule delay={i * 0.12} />
+          <div className="grid grid-cols-[7.5rem_1fr] items-center gap-4 md:grid-cols-[11rem_1fr]">
+            <p className="label flex gap-3">
+              <span className="text-ice">{String(i + 1).padStart(2, '0')}</span>
+              <span className={i === 2 ? 'text-bone' : ''}>{r.text}</span>
+            </p>
+            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-12 w-full md:h-[clamp(3rem,9svh,5rem)]" aria-hidden="true">
+              <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="var(--color-silver)" strokeOpacity="0.12" strokeDasharray="2 6" vectorEffect="non-scaling-stroke" />
+              <path ref={r.ref} fill="none" stroke={r.stroke} strokeWidth={r.width} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            </svg>
+          </div>
         </div>
       ))}
-      <div className="border-t border-silver/15" />
+      <DrawRule delay={0.4} />
     </div>
   )
 }
@@ -77,25 +88,26 @@ export function Adaptive() {
       id="adaptive"
       data-shot="adaptive"
       aria-labelledby="adaptive-title"
-      className="layer-fg scrim flex min-h-svh flex-col justify-between gap-16 py-[14svh] max-md:gap-8 max-md:pb-[8svh] max-md:pt-[44svh]"
+      className="scrim relative flex min-h-svh flex-col justify-between gap-10 py-[11svh] max-md:gap-8 max-md:pb-[8svh] max-md:pt-[44svh]"
     >
-      <div className="wrap grid grid-cols-12 gap-y-8">
+      <SectionNumeral n="04" className="-left-[3vw] top-[8svh]" />
+      <div className="layer-fg wrap grid grid-cols-12 gap-y-8">
         <div className="col-span-12 md:col-span-8">
-          <FadeUp>
-            <SectionHead index={adaptive.index} label={adaptive.label} />
-          </FadeUp>
-          <LineReveal
+          <SectionHead index={adaptive.index} label={adaptive.label} />
+          <MaskedText
             id="adaptive-title"
             lines={adaptive.title}
             className="display mt-8 text-[length:var(--text-h2)]"
           />
         </div>
-        <FadeUp delay={0.2} className="col-span-12 md:col-span-4 md:col-start-1">
-          <p className="lead max-md:text-base">{adaptive.body}</p>
-        </FadeUp>
+        <div className="col-span-12 md:col-span-5 md:col-start-1">
+          <ClipReveal delay={0.15}>
+            <p className="lead max-md:text-base">{adaptive.body}</p>
+          </ClipReveal>
+        </div>
       </div>
 
-      <div className="wrap">
+      <div className="layer-fg wrap">
         <WaveDiagram />
       </div>
     </section>

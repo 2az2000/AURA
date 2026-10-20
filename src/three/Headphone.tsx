@@ -1,8 +1,9 @@
-import { useMemo, useRef, type RefObject } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Finish } from '../content/copy'
 import { damp } from '../lib/math'
+import type { HotspotId } from '../story/storyboard'
 import { makeBrushedTexture, makeWeaveTexture } from './textures'
 
 /**
@@ -24,11 +25,25 @@ export interface HeadphoneDrive {
   explode: number
   /** Indicator ring brightness. */
   glow: number
+  /** 0 both cups → 1 the far (left) cup collapsed out of the shot. */
+  solo: number
 }
 
-/** Part groups of the right cup, exposed so the DOM label overlay can project them to screen space. */
-export type PartKey = 'plate' | 'shell' | 'driver' | 'pad'
-export type PartAnchors = Partial<Record<PartKey, THREE.Object3D | null>>
+/**
+ * A point on the model that a DOM hotspot can attach to.
+ * `obj` is the Object3D the point is relative to (it moves with explode / mirroring),
+ * `offset` is in that object's local space, and `normal` (optional, local space) lets the
+ * overlay fade a hotspot out when the surface it sits on faces away from the camera.
+ */
+export interface Anchor {
+  obj: THREE.Object3D
+  offset: THREE.Vector3
+  normal?: THREE.Vector3
+}
+export type AnchorMap = Partial<Record<HotspotId, Anchor>>
+
+/** Hotspots anchored on the left (mirrored) cup instead of the right. */
+const MIRROR_IDS = new Set<HotspotId>(['cover', 'mic'])
 
 const CUP_X = 0.95 // distance from centre to the middle of each cup
 const CUP_DEPTH = 0.82 // oval squash (front-to-back)
@@ -45,15 +60,15 @@ const ICE = new THREE.Color('#83b8ff')
 /* ------------------------------------------------------------------ */
 
 /** Lathe from a flat list of [radius, height] pairs. */
-function lathe(points: [number, number][], segments = 96) {
+function lathe(points: [number, number][], segments: number) {
   return new THREE.LatheGeometry(
     points.map(([r, y]) => new THREE.Vector2(r, y)),
     segments,
   )
 }
 
-function useGeometry() {
-  return useMemo(() => {
+function useGeometry(seg: number) {
+  const geos = useMemo(() => {
     // Cup shell: hollow, open towards the head. Points run centre → outer wall → inner wall.
     const shell = lathe([
       [0.0, 0.235],
@@ -69,7 +84,7 @@ function useGeometry() {
       [0.598, 0.1],
       [0.52, 0.185],
       [0.0, 0.195],
-    ])
+    ], seg)
 
     // Face plate: slightly domed disc with a stepped centre medallion and a bevelled rim.
     const plate = lathe([
@@ -83,7 +98,7 @@ function useGeometry() {
       [0.578, 0.268],
       [0.58, 0.245],
       [0.0, 0.245],
-    ])
+    ], seg)
 
     // Driver diaphragm (shallow cone/dome).
     const diaphragm = lathe([
@@ -94,7 +109,7 @@ function useGeometry() {
       [0.385, -0.01],
       [0.37, -0.02],
       [0.0, 0.0],
-    ])
+    ], seg)
 
     // Band: half-ellipse that drops vertically into the cup yokes.
     const bandPts: THREE.Vector3[] = []
@@ -108,8 +123,8 @@ function useGeometry() {
       const a = Math.PI * (0.27 + (i / 80) * 0.46)
       padPts.push(new THREE.Vector3((CUP_X - 0.1) * Math.cos(a), BAND_CENTER_Y + (b - 0.11) * Math.sin(a), 0))
     }
-    const band = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bandPts), 220, 0.05, 24, false)
-    const bandPad = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(padPts), 120, 0.085, 24, false)
+    const band = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(bandPts), Math.round(seg * 2.3), 0.05, Math.max(12, Math.round(seg / 4)), false)
+    const bandPad = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(padPts), Math.round(seg * 1.25), 0.085, Math.max(12, Math.round(seg / 4)), false)
 
     // Yoke: semicircular arc over the top of the cup, in the YZ plane.
     const yokePts: THREE.Vector3[] = []
@@ -119,8 +134,11 @@ function useGeometry() {
     }
     const yoke = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(yokePts), 64, 0.036, 16, false)
 
-    return { shell, plate, diaphragm, band, bandPad, yoke }
-  }, [])
+    return { shell, plate, diaphragm, band, bandPad, yoke, segments: seg }
+  }, [seg])
+  // R3F disposes declarative objects; geometry built by hand has to be freed by hand.
+  useEffect(() => () => Object.values(geos).forEach((g) => typeof g !== 'number' && g.dispose()), [geos])
+  return geos
 }
 
 /* ------------------------------------------------------------------ */
@@ -128,7 +146,7 @@ function useGeometry() {
 /* ------------------------------------------------------------------ */
 
 function useMaterials() {
-  return useMemo(() => {
+  const mats = useMemo(() => {
     const brushed = makeBrushedTexture()
     const brushedBand = brushed.clone()
     brushedBand.needsUpdate = true
@@ -189,8 +207,23 @@ function useMaterials() {
       toneMapped: false,
     })
 
-    return { metal, shell, band, leather, fabric, foil, rubber, magnet, light }
+    // Control hardware: flat-shaded metal reads as knurling at this size.
+    const knurl = metal.clone()
+    knurl.flatShading = true
+    knurl.needsUpdate = true
+    const dark = new THREE.MeshStandardMaterial({ color: '#07080a', roughness: 0.6, metalness: 0.4 })
+
+    return { metal, shell, band, leather, fabric, foil, rubber, magnet, light, knurl, dark, textures: [brushed, brushedBand, weave] }
   }, [])
+  useEffect(
+    () => () => {
+      const { textures, ...m } = mats
+      Object.values(m).forEach((x) => x.dispose())
+      textures.forEach((t) => t.dispose())
+    },
+    [mats],
+  )
+  return mats
 }
 
 /* ------------------------------------------------------------------ */
@@ -200,7 +233,9 @@ function useMaterials() {
 type Mats = ReturnType<typeof useMaterials>
 type Geos = ReturnType<typeof useGeometry>
 
-function Cup({ rig, mats, geo, anchors }: { rig: RefObject<HeadphoneDrive>; mats: Mats; geo: Geos; anchors?: RefObject<PartAnchors> }) {
+type Reg = (id: HotspotId, offset: [number, number, number], normal?: [number, number, number]) => (o: THREE.Object3D | null) => void
+
+function Cup({ rig, mats, geo, reg, primary }: { rig: RefObject<HeadphoneDrive>; mats: Mats; geo: Geos; reg: Reg; primary: boolean }) {
   const plate = useRef<THREE.Group>(null)
   const shell = useRef<THREE.Group>(null)
   const driver = useRef<THREE.Group>(null)
@@ -214,17 +249,31 @@ function Cup({ rig, mats, geo, anchors }: { rig: RefObject<HeadphoneDrive>; mats
     if (pad.current) pad.current.position.y = e * PART_TRAVEL.pad
   })
 
-  const register = (key: PartKey) => (o: THREE.Object3D | null) => {
-    if (anchors?.current) anchors.current[key] = o
-  }
+  // The right cup owns most hotspots. A few sit on surfaces that are only seen from the
+  // (mirrored) left cup in their shot: the ear-pad cover (materials) and the mic port (adaptive).
+  const r: Reg = (id, off, n) => ((MIRROR_IDS.has(id) ? !primary : primary) ? reg(id, off, n) : () => {})
 
   return (
     // Axis: local +Y = outward. Rotating -90° about Z maps local +Y onto world +X.
     <group position={[CUP_X, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
       <group scale={[1, 1, CUP_DEPTH]}>
         {/* 01 — Face plate */}
-        <group ref={(o) => { plate.current = o; register('plate')(o) }}>
+        <group ref={(o) => { plate.current = o; r('plate', [-0.72, 0, 0])(o) }}>
           <mesh geometry={geo.plate} material={mats.metal} />
+          {/* hotspot anchor on the plate surface */}
+          <group ref={r('face', [-0.3, 0.3, 0], [0, 1, 0])} />
+          {/* microphone ports: tiny machined rings with a dark opening */}
+          {[-0.5, 0.5].map((x) => (
+            <group key={x} position={[x, 0.3, 0]}>
+              <mesh rotation={[Math.PI / 2, 0, 0]} material={mats.knurl}>
+                <torusGeometry args={[0.03, 0.007, 8, 24]} />
+              </mesh>
+              <mesh position={[0, 0.001, 0]} material={mats.dark}>
+                <cylinderGeometry args={[0.027, 0.027, 0.004, 20]} />
+              </mesh>
+              {x < 0 && <group ref={r('mic', [0, 0, 0], [0, 1, 0])} />}
+            </group>
+          ))}
           {/* machined groove */}
           <mesh position={[0, 0.3, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.33, 0.004, 8, 128]} />
@@ -233,23 +282,38 @@ function Cup({ rig, mats, geo, anchors }: { rig: RefObject<HeadphoneDrive>; mats
         </group>
 
         {/* 02 — Chassis */}
-        <group ref={(o) => { shell.current = o; register('shell')(o) }}>
+        <group ref={(o) => { shell.current = o; r('shell', [-0.72, 0, 0])(o) }}>
           <mesh geometry={geo.shell} material={mats.shell} />
           {/* indicator ring in the seam between plate and chassis */}
           <mesh position={[0, 0.247, 0]} rotation={[Math.PI / 2, 0, 0]} material={mats.light}>
-            <torusGeometry args={[0.592, 0.01, 12, 160]} />
+            <torusGeometry args={[0.592, 0.01, 12, Math.round(geo.segments * 1.6)]} />
           </mesh>
+          <group ref={r('light', [-0.3, 0.247, 0.51], [0, 1, 0])} />
+          {/* controls on the front edge of the chassis: one dial, one button */}
+          <group position={[0.3, -0.04, 0.605]} rotation={[0, 0.46, 0]} ref={r('dial', [0, 0, 0.07], [0, 0, 1])}>
+            <mesh rotation={[Math.PI / 2, 0, 0]} material={mats.knurl}>
+              <cylinderGeometry args={[0.085, 0.085, 0.075, 28]} />
+            </mesh>
+            <mesh position={[0, 0, 0.039]} rotation={[Math.PI / 2, 0, 0]} material={mats.dark}>
+              <cylinderGeometry args={[0.05, 0.05, 0.004, 24]} />
+            </mesh>
+          </group>
+          <group position={[-0.3, -0.04, 0.605]} rotation={[0, -0.46, 0]} ref={r('button', [0, 0, 0.05], [0, 0, 1])}>
+            <mesh rotation={[0, 0, Math.PI / 2]} material={mats.metal}>
+              <capsuleGeometry args={[0.032, 0.11, 6, 16]} />
+            </mesh>
+          </group>
         </group>
 
         {/* 03 — Driver */}
-        <group ref={(o) => { driver.current = o; register('driver')(o) }}>
+        <group ref={(o) => { driver.current = o; r('driver', [-0.5, -0.04, 0])(o) }}>
           <group position={[0, -0.04, 0]}>
             <mesh geometry={geo.diaphragm} material={mats.foil} />
             <mesh position={[0, -0.01, 0]} rotation={[Math.PI / 2, 0, 0]} material={mats.rubber}>
-              <torusGeometry args={[0.4, 0.04, 16, 96]} />
+              <torusGeometry args={[0.4, 0.04, 16, geo.segments]} />
             </mesh>
             <mesh position={[0, -0.03, 0]} material={mats.magnet}>
-              <cylinderGeometry args={[0.43, 0.43, 0.03, 64]} />
+              <cylinderGeometry args={[0.43, 0.43, 0.03, Math.round(geo.segments * 0.66)]} />
             </mesh>
             <mesh position={[0, -0.12, 0]} material={mats.magnet}>
               <cylinderGeometry args={[0.24, 0.24, 0.16, 48]} />
@@ -261,13 +325,14 @@ function Cup({ rig, mats, geo, anchors }: { rig: RefObject<HeadphoneDrive>; mats
         </group>
 
         {/* 04 — Ear pad */}
-        <group ref={(o) => { pad.current = o; register('pad')(o) }}>
+        <group ref={(o) => { pad.current = o; r('pad', [-0.72, -0.33, 0])(o) }}>
           <mesh position={[0, -0.33, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.9]} material={mats.fabric}>
-            <torusGeometry args={[0.5, 0.165, 40, 96]} />
+            <torusGeometry args={[0.5, 0.165, Math.max(20, Math.round(geo.segments * 0.4)), geo.segments]} />
           </mesh>
+          <group ref={r('cover', [-0.5, -0.48, 0], [0, -1, 0])} />
           {/* acoustic mesh visible through the pad opening */}
           <mesh position={[0, -0.24, 0]} material={mats.fabric}>
-            <cylinderGeometry args={[0.36, 0.36, 0.02, 64]} />
+            <cylinderGeometry args={[0.36, 0.36, 0.02, Math.round(geo.segments * 0.66)]} />
           </mesh>
         </group>
       </group>
@@ -283,18 +348,22 @@ export function Headphone({
   rig,
   finish,
   anchors,
+  segments,
 }: {
   rig: RefObject<HeadphoneDrive>
   finish: Finish
-  anchors: RefObject<PartAnchors>
+  anchors: RefObject<AnchorMap>
+  /** Geometry density (quality tier). */
+  segments: number
 }) {
-  const geo = useGeometry()
+  const geo = useGeometry(segments)
   const mats = useMaterials()
   const target = useMemo(
     () => ({ shell: new THREE.Color(), metal: new THREE.Color() }),
     [],
   )
 
+  const invalidate = useThree((st) => st.invalidate)
   useFrame((_, dt) => {
     // Ease finish colours so switching feels like the light changing, not a swap.
     target.shell.set(finish.shell)
@@ -303,19 +372,50 @@ export function Headphone({
     mats.shell.color.lerp(target.shell, k)
     mats.band.color.lerp(target.shell, k)
     mats.metal.color.lerp(target.metal, k)
-    mats.light.emissiveIntensity = damp(mats.light.emissiveIntensity, 0.35 + (rig.current?.glow ?? 1) * 1.1, 6, dt)
+    const glowTarget = 0.35 + (rig.current?.glow ?? 1) * 1.1
+    mats.light.emissiveIntensity = damp(mats.light.emissiveIntensity, glowTarget, 6, dt)
+    // on-demand rendering: keep drawing until colours / glow have settled
+    const dc =
+      Math.abs(mats.shell.color.r - target.shell.r) + Math.abs(mats.shell.color.g - target.shell.g) +
+      Math.abs(mats.metal.color.r - target.metal.r) + Math.abs(mats.metal.color.g - target.metal.g)
+    if (dc > 0.004 || Math.abs(mats.light.emissiveIntensity - glowTarget) > 0.01) invalidate()
   })
 
   // The yoke + slider belong to the chassis, so they travel with it in the exploded view.
   const yokes = useRef<(THREE.Group | null)[]>([])
+  const leftSide = useRef<THREE.Group>(null)
+  const bandRef = useRef<THREE.Mesh>(null)
+  const bandPadRef = useRef<THREE.Mesh>(null)
   useFrame(() => {
     const x = CUP_X + (rig.current?.explode ?? 0) * PART_TRAVEL.shell
     yokes.current.forEach((g) => g && (g.position.x = x))
+    // Focus shots collapse the far cup toward its own centre so it never crowds the frame.
+    const l = leftSide.current
+    if (l) {
+      const k = 1 - 0.998 * (rig.current?.solo ?? 0)
+      l.visible = k > 0.04
+      l.scale.set(-k, k, k)
+      l.position.x = -CUP_X * (1 - k)
+      // ...and the headband, which would otherwise arc across the copy
+      if (bandRef.current && bandPadRef.current) {
+        bandRef.current.visible = bandPadRef.current.visible = k > 0.04
+        bandRef.current.scale.set(k, k, 3.4 * k)
+        bandPadRef.current.scale.set(k, k, 2.3 * k)
+      }
+    }
   })
 
+  /** Ref-callback factory that records a hotspot anchor (and clears it on unmount). */
+  const reg: Reg = (id, offset, normal) => (obj) => {
+    const map = anchors.current
+    if (!map) return
+    if (!obj) delete map[id]
+    else map[id] = { obj, offset: new THREE.Vector3(...offset), normal: normal && new THREE.Vector3(...normal) }
+  }
+
   const side = (mirror: boolean) => (
-    <group scale={[mirror ? -1 : 1, 1, 1]}>
-      <Cup rig={rig} mats={mats} geo={geo} anchors={mirror ? undefined : anchors} />
+    <group ref={mirror ? leftSide : undefined} scale={[mirror ? -1 : 1, 1, 1]}>
+      <Cup rig={rig} mats={mats} geo={geo} reg={reg} primary={!mirror} />
       {/* yoke arc + pivots */}
       <group ref={(g) => { yokes.current[mirror ? 1 : 0] = g }} position={[CUP_X, 0, 0]}>
         <mesh geometry={geo.yoke} material={mats.metal} />
@@ -324,6 +424,7 @@ export function Headphone({
             <cylinderGeometry args={[0.075, 0.075, 0.1, 32]} />
           </mesh>
         ))}
+        {!mirror && <group ref={reg('pivot', [0, 0, 0.66], [0, 0, 1])} />}
         {/* slider joining yoke and band */}
         <mesh position={[0, 0.9, 0]} scale={[1, 1, 3.4]} material={mats.metal}>
           <capsuleGeometry args={[0.056, 0.2, 8, 24]} />
@@ -334,8 +435,8 @@ export function Headphone({
 
   return (
     <group>
-      <mesh geometry={geo.band} material={mats.band} scale={[1, 1, 3.4]} />
-      <mesh geometry={geo.bandPad} material={mats.leather} scale={[1, 1, 2.3]} />
+      <mesh ref={bandRef} geometry={geo.band} material={mats.band} scale={[1, 1, 3.4]} />
+      <mesh ref={bandPadRef} geometry={geo.bandPad} material={mats.leather} scale={[1, 1, 2.3]} />
       {side(false)}
       {side(true)}
     </group>

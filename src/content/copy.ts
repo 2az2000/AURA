@@ -6,6 +6,8 @@
  * "design target" in the UI.
  */
 
+import type { HotspotId } from '../story/storyboard'
+
 export const brand = {
   name: 'AURA',
   tagline: 'Silence, engineered.',
@@ -24,10 +26,32 @@ export const nav = [
 
 export const hero = {
   kicker: 'Concept 01 / Wireless over-ear',
+  tagline: ['Silence,', 'engineered.'],
   sub: 'A wireless headphone in titanium, aramid and quiet.',
   cta: 'Register interest',
   scroll: 'Scroll',
+  drag: 'Drag to inspect',
 }
+
+/**
+ * Hotspots: labelled points on the 3D model. `side` is which way the label extends.
+ * Anatomy labels (plate, shell, driver, pad) reuse the part names above.
+ */
+export const hotspotCopy: Record<HotspotId, { name: string; text: string; side: 'r' | 'l'; lift?: number }> = {
+  plate: { name: 'Face plate', text: 'Machined titanium, circular-brushed.', side: 'l', lift: 20 },
+  shell: { name: 'Chassis', text: 'A single graphite shell.', side: 'r', lift: 120 },
+  driver: { name: 'Driver', text: 'A 40 mm dynamic driver. Design target.', side: 'l', lift: 80 },
+  pad: { name: 'Ear pad', text: 'Memory foam under woven aramid.', side: 'l', lift: 140 },
+  face: { name: 'Face plate', text: 'Machined titanium, circular-brushed. The grain runs in rings, so light sweeps across it as it moves.', side: 'l', lift: 10 },
+  cover: { name: 'Aramid cover', text: 'Woven aramid over memory foam: matte, so the metal does the shining.', side: 'l', lift: 20 },
+  light: { name: 'Indicator ring', text: 'One ice-blue ring. The only colour on the object.', side: 'l', lift: 70 },
+  mic: { name: 'Microphone port', text: 'Samples the room so the cancelling signal can be generated.', side: 'r', lift: 30 },
+  dial: { name: 'Dial', text: 'One of the two physical controls.', side: 'l', lift: 0 },
+  button: { name: 'Button', text: 'The other physical control.', side: 'l', lift: 100 },
+  pivot: { name: 'Gimbal pivot', text: 'Lets each cup settle onto the head instead of clamping.', side: 'l', lift: 50 },
+}
+
+export const menu = { open: 'Menu', close: 'Close', label: 'Main navigation' }
 
 export const silence = {
   index: '01',
@@ -41,6 +65,8 @@ export const anatomy = {
   index: '02',
   label: 'Anatomy',
   title: ['Four layers.', 'One purpose.'],
+  intro: 'Scroll to pull the cup apart, one layer at a time.',
+  overview: 'Overview',
   body: 'Each cup is four parts, machined to stack without compromise. Pull it apart and the logic is plain.',
   parts: [
     {
@@ -91,11 +117,11 @@ export const materials = {
     { id: 'glacier', name: 'Glacier', note: 'Pale cold silver', shell: '#aeb7c4', metal: '#dfe5ee' },
   ] satisfies Finish[],
   notes: [
-    ['Frame', 'Titanium, circular-brushed'],
-    ['Cover', 'Woven aramid'],
-    ['Band', 'Protein leather, no visible stitching'],
-    ['Light', 'One ice-blue ring. The only colour on the object.'],
-  ] as const,
+    ['Frame', 'Titanium, circular-brushed', 'face'],
+    ['Cover', 'Woven aramid', 'cover'],
+    ['Band', 'Protein leather, no visible stitching', null],
+    ['Light', 'One ice-blue ring. The only colour on the object.', 'light'],
+  ] as const satisfies readonly (readonly [string, string, HotspotId | null])[],
 }
 
 export const adaptive = {
@@ -118,13 +144,13 @@ export const fit = {
   specsTitle: 'Design targets',
   specsNote: 'Targets for a fictional product. None of this is a commitment.',
   specs: [
-    ['Driver', '40 mm dynamic'],
-    ['Wireless', 'Bluetooth LE Audio'],
-    ['Wired', 'USB-C audio, passive 3.5 mm'],
-    ['Battery', 'All-day listening'],
-    ['Weight', 'Under 300 g'],
-    ['Controls', 'One dial, one button'],
-  ] as const,
+    ['Driver', '40 mm dynamic', null],
+    ['Wireless', 'Bluetooth LE Audio', null],
+    ['Wired', 'USB-C audio, passive 3.5 mm', null],
+    ['Battery', 'All-day listening', null],
+    ['Weight', 'Under 300 g', null],
+    ['Controls', 'One dial, one button', 'dial'],
+  ] as const satisfies readonly (readonly [string, string, HotspotId | null])[],
 }
 
 export const reserve = {

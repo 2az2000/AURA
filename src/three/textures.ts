@@ -28,14 +28,10 @@ export function makeBrushedTexture(size = 1024, seed = 7) {
   c.width = c.height = size
   const g = c.getContext('2d')!
   for (let y = 0; y < size; y++) {
-    // Mostly constant along the row (the brushing direction); a little slow variation
-    // along it so the grain never looks perfectly synthetic.
-    const base = 150 + rand() * 90
-    for (let x = 0; x < size; x += 64) {
-      const v = base + (rand() - 0.5) * 8
-      g.fillStyle = `rgb(${v},${v},${v})`
-      g.fillRect(x, y, 64, 1)
-    }
+    // Constant along the row (the brushing direction): the grain comes from row-to-row variation.
+    const v = 150 + rand() * 90
+    g.fillStyle = `rgb(${v},${v},${v})`
+    g.fillRect(0, y, size, 1)
   }
   const tex = new THREE.CanvasTexture(c)
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping

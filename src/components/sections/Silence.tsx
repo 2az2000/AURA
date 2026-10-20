@@ -1,38 +1,42 @@
 import { silence } from '../../content/copy'
-import { FadeUp, LineReveal } from '../ui/Reveal'
+import { DrawRule } from '../../motion/Reveal'
+import { MaskedText } from '../../motion/MaskedText'
+import { ScrollWords } from '../../motion/ScrollWords'
 import { SectionHead } from '../ui/SectionHead'
+import { SectionNumeral } from '../ui/SectionNumeral'
 
-/** 01 — Manifesto. Product shown in profile on the right; copy hangs from the left edge. */
+/**
+ * 01 — Manifesto. Profile view of the product on the right.
+ * The paragraph is "read" by scrolling (ScrollWords) so the section has time to breathe
+ * and reading speed follows scroll speed. A giant outlined numeral sits behind the product.
+ */
 export function Silence() {
   return (
     <section
       id="silence"
       data-shot="silence"
       aria-labelledby="silence-title"
-      className="layer-fg scrim flex min-h-svh items-center py-[14svh] max-md:items-end max-md:pt-[52svh]"
+      className="scrim relative flex min-h-[135svh] items-center py-[14svh] max-md:items-end max-md:pt-[52svh]"
     >
-      <div className="wrap grid grid-cols-12 gap-y-10">
+      <SectionNumeral n="01" className="-right-[4vw] top-[6svh]" />
+      <div className="layer-fg wrap grid grid-cols-12 gap-y-10">
         <div className="col-span-12 md:col-span-7">
-          <FadeUp>
-            <SectionHead index={silence.index} label={silence.label} />
-          </FadeUp>
-          <LineReveal
+          <SectionHead index={silence.index} label={silence.label} />
+          <MaskedText
             id="silence-title"
             lines={silence.title}
             className="display mt-8 text-[length:var(--text-h1)]"
-            as="h2"
           />
         </div>
 
         <div className="col-span-12 md:col-span-4 md:col-start-1 md:mt-10">
-          <FadeUp delay={0.2}>
-            <p className="lead">{silence.body}</p>
-          </FadeUp>
+          <ScrollWords text={silence.body} className="lead" />
         </div>
 
-        <FadeUp delay={0.3} className="col-span-12 md:col-span-3 md:col-start-10 md:self-end">
-          <p className="label border-t border-silver/20 pt-4">{silence.aside}</p>
-        </FadeUp>
+        <div className="col-span-12 md:col-span-3 md:col-start-10 md:self-end">
+          <DrawRule />
+          <p className="label pt-4">{silence.aside}</p>
+        </div>
       </div>
     </section>
   )

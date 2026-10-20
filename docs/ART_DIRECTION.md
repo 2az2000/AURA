@@ -68,7 +68,7 @@ pool of cool light under the product.
   damping), so it has weight and never snaps.
 - **Hold, then move.** At each section the product holds still, then eases to the next
   pose. It lands, rather than drifting.
-- **Text reveals are masked line slides** (transform only), once, on first view.
+- **Headlines are masked word reveals** (transform only); other copy uses different grammars (rules that draw, clip wipes, a scroll-read paragraph). See `MOTION_SPEC.md`.
 - **Purposeful motion only:** the exploded view explains construction; the noise diagram
   explains cancellation (its third line *becomes* flat as you scroll); the finish switcher
   shows material. Nothing animates just to animate.

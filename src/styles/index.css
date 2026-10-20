@@ -31,7 +31,9 @@
   --text-lead: clamp(1.25rem, 1.05rem + 0.8vw, 1.75rem);
   --text-h2: clamp(2.5rem, 1.3rem + 4.2vw, 5.75rem);
   --text-h1: clamp(3rem, 0.9rem + 6.8vw, 8.5rem);
-  --text-mega: clamp(5.5rem, 0.5rem + 27vw, 30rem);
+  --text-mega: clamp(6rem, 33vw, 36rem);
+  --text-tag: clamp(2.5rem, 1rem + 3.6vw, 5rem);
+  --text-numeral: clamp(12rem, 36vw, 40rem);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-cine: cubic-bezier(0.65, 0, 0.35, 1);
@@ -142,9 +144,33 @@ body {
 }
 
 /* Layering contract (see docs/ARCHITECTURE.md):
-   0 = background typography, 1 = WebGL canvas, 2 = foreground content. */
+   0 atmosphere + background type, 1 WebGL canvas, 2 mobile scrim,
+   3 foreground content, 4 hotspots, 40 header, 50 grain, 60 menu/skip link.
+   Sections are NOT stacking contexts, so a section's background type (z0) can sit
+   behind the canvas while its content (z3) sits in front of it. */
 .layer-bg { position: relative; z-index: 0; }
-.layer-fg { position: relative; z-index: 2; }
+.layer-fg { position: relative; z-index: 3; }
+
+/* Giant outlined section numeral: a depth layer that scrolls at its own rate. */
+.numeral {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-numeral);
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(191 200 213 / 0.11);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Areas where dragging rotates the product. Vertical swipes still scroll on touch. */
+[data-drag-zone] {
+  cursor: grab;
+  touch-action: pan-y;
+}
+[data-drag-zone]:active { cursor: grabbing; }
+html[data-webgl='false'] [data-drag-zone] { display: none; }
 }
 
 /* On phones the product sits in the top half and copy scrolls over it. A dark
@@ -154,7 +180,7 @@ body {
     content: '';
     position: absolute;
     inset: 0;
-    z-index: -1;
+    z-index: 2;
     pointer-events: none;
     background: linear-gradient(
       to bottom,
@@ -167,7 +193,57 @@ body {
   }
 }
 
+/* ── Hotspots ───────────────────────────────────────────────────────── */
+
+[data-hotspot] .hs-line path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.9s var(--ease-out-expo);
+}
+[data-hotspot][data-on='true'] .hs-line path { stroke-dashoffset: 0; }
+[data-hotspot] .hs-label p { text-shadow: 0 0 6px rgb(11 12 14 / 0.95), 0 0 14px rgb(11 12 14 / 0.9); }
+[data-hotspot] .hs-label {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.6s var(--ease-out-expo) 0.15s, transform 0.6s var(--ease-out-expo) 0.15s;
+}
+[data-hotspot][data-on='true'] .hs-label { opacity: 1; transform: none; }
+[data-hotspot] .hs-ring { transform: scale(0.6); opacity: 0; transition: transform 0.5s var(--ease-out-expo), opacity 0.5s; }
+[data-hotspot][data-on='true'] .hs-ring { transform: scale(1); opacity: 1; }
+[data-hotspot] button:hover .hs-ring,
+[data-hotspot] button:focus-visible .hs-ring,
+[data-hotspot] button[aria-pressed='true'] .hs-ring { transform: scale(1.35); border-color: var(--color-ice); }
+[data-hotspot][data-current='true'] .hs-label p { color: var(--color-ice); }
+[data-hotspot][data-current='true'] .hs-ring { transform: scale(1.5); border-color: var(--color-ice); }
+[data-hotspot] .hs-text {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.5s var(--ease-out-expo), opacity 0.4s;
+}
+[data-hotspot] .hs-text[data-open='true'] { grid-template-rows: 1fr; opacity: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-hotspot] button[aria-pressed='true'] .hs-pulse { animation: hspulse 2.4s var(--ease-out-expo) infinite; }
+}
+
+/* On phones, labels would crowd the product: show a hotspot's label only when it is the
+   current anatomy part or has been pressed. The marker itself stays tappable. */
+@media (max-width: 767px) {
+  [data-hotspot] .hs-line,
+  [data-hotspot] .hs-label { display: none; }
+  [data-hotspot][data-current='true'] .hs-line,
+  [data-hotspot][data-current='true'] .hs-label,
+  [data-hotspot]:has(button[aria-pressed='true']) .hs-line,
+  [data-hotspot]:has(button[aria-pressed='true']) .hs-label { display: block; }
+}
+
 /* ── Keyframes ──────────────────────────────────────────────────────── */
+
+@keyframes hspulse {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
 
 @keyframes scrollcue {
   0%   { transform: translateY(-100%); }

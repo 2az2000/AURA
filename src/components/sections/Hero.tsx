@@ -1,95 +1,110 @@
-import { motion, useReducedMotion } from 'motion/react'
+import { motion, useScroll, useTransform } from 'motion/react'
 import { brand, hero } from '../../content/copy'
-
-const EASE = [0.16, 1, 0.3, 1] as const
+import { useIntroSegment } from '../../motion/intro'
+import { MagneticLink } from '../../motion/MagneticLink'
+import { MaskedText } from '../../motion/MaskedText'
+import { stagger } from '../../motion/tokens'
+import { DragZone } from '../ui/DragZone'
 
 /**
- * Hero. Three layers:
- *  - z0  oversized AURA wordmark (background typography)
- *  - z1  the WebGL headphone (global fixed canvas, see three/Stage.tsx)
- *  - z2  small technical labels and the tagline
- * Putting the product *between* two layers of type is what gives the hero depth.
+ * One letter of the wordmark. Two stacked copies: an outline that rises out of a mask,
+ * then a solid fill that wipes across it. Both are slices of the title-sequence clock.
+ */
+function Letter({ ch, i }: { ch: string; i: number }) {
+  const rise = useIntroSegment(0.45 + i * stagger.letter, 1.65 + i * stagger.letter)
+  const y = useTransform(rise, [0, 1], ['105%', '0%'])
+  const fill = useIntroSegment(1.15 + i * 0.14, 2.15 + i * 0.14)
+  const clip = useTransform(fill, [0, 1], ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'])
+  return (
+    <span className="block overflow-hidden pb-[0.08em]" aria-hidden="true">
+      <motion.span className="relative block" style={{ y }}>
+        <span className="block text-transparent [-webkit-text-stroke:1.5px_rgb(191_200_213/0.32)]">{ch}</span>
+        <motion.span
+          className="absolute inset-0 block"
+          style={{
+            clipPath: clip,
+            background: 'linear-gradient(180deg, #5b6371 0%, #2c313a 58%, #15171b 100%)',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+          }}
+        >
+          {ch}
+        </motion.span>
+      </motion.span>
+    </span>
+  )
+}
+
+/**
+ * Hero = title card.
+ *  z0  AURA wordmark, bleeding off the bottom edge; outlines rise, then fill (title sequence)
+ *  z1  the 3D headphone, arriving from darkness (the Rig, driven by the same clock)
+ *  z3  tagline, sub-copy, primary action — flanking the product, not covering it
+ * The wordmark drifts at a different rate from the page, so it separates from the product.
  */
 export function Hero() {
-  const reduce = useReducedMotion()
-  const letters = brand.name.split('')
+  const { scrollY } = useScroll()
+  const wordmarkY = useTransform(scrollY, [0, 900], [0, 260])
+  const tagline = useIntroSegment(1.25, 2.25, 'linear')
+  const kicker = useIntroSegment(1.5, 2.1)
+  const lower = useIntroSegment(1.8, 2.5)
+  const lowerY = useTransform(lower, [0, 1], [14, 0])
 
   return (
     <section
       id="top"
       data-shot="hero"
       aria-labelledby="hero-title"
-      className="relative flex min-h-svh flex-col justify-between overflow-x-clip"
+      className="relative flex min-h-svh flex-col overflow-x-clip"
     >
       {/* Background wordmark */}
-      <div className="layer-bg pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+      <motion.div
+        className="layer-bg pointer-events-none absolute inset-x-0 bottom-0 flex justify-center overflow-hidden"
+        style={{ y: wordmarkY, height: 'calc(var(--text-mega) * 0.7)' }}
+      >
         <h1
           id="hero-title"
-          className="display flex select-none leading-none -translate-y-[20svh] text-[length:var(--text-mega)] tracking-[-0.05em]"
-          style={{
-            background: 'linear-gradient(180deg, #4a515d 0%, #272b32 60%, #14161a 100%)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            color: 'transparent',
-          }}
+          className="display flex select-none leading-[0.8] text-[length:var(--text-mega)] tracking-[-0.05em]"
         >
-          <span className="sr-only">{brand.name} — {brand.tagline}</span>
-          {letters.map((l, i) => (
-            <span key={i} className="block overflow-hidden pb-[0.1em]" aria-hidden="true">
-              <motion.span
-                className="block"
-                initial={reduce ? false : { y: '105%' }}
-                animate={{ y: 0 }}
-                transition={{ duration: 1.5, ease: EASE, delay: 0.15 + i * 0.1 }}
-              >
-                {l}
-              </motion.span>
-            </span>
+          <span className="sr-only">
+            {brand.name} — {brand.tagline}
+          </span>
+          {brand.name.split('').map((l, i) => (
+            <Letter key={i} ch={l} i={i} />
           ))}
         </h1>
-      </div>
+      </motion.div>
 
       {/* Foreground */}
-      <div className="layer-fg wrap flex flex-1 flex-col justify-between pb-10 pt-28 md:pb-14">
-        <motion.p
-          className="label"
-          initial={reduce ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.2, delay: 1.2 }}
-        >
+      <div className="layer-fg wrap pointer-events-none flex flex-1 flex-col pb-[calc(var(--text-mega)*0.5)] pt-24 max-md:pb-[calc(var(--text-mega)*0.62)]">
+        <motion.p className="label" style={{ opacity: kicker }}>
           {hero.kicker}
         </motion.p>
 
-        <div className="grid grid-cols-12 items-end gap-y-8">
-          <motion.div
-            className="col-span-12 md:col-span-6"
-            initial={reduce ? false : { opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1.2, ease: EASE, delay: 1.1 }}
-          >
-            <p className="display text-[length:var(--text-h2)] leading-[0.95]">
-              Silence,
-              <br />
-              engineered.
-            </p>
-          </motion.div>
+        <div className="grid flex-1 grid-cols-12 items-center gap-y-6 max-md:content-end max-md:items-end">
+          <div className="col-span-12 md:col-span-4">
+            <MaskedText
+              as="p"
+              lines={hero.tagline}
+              trigger={tagline}
+              className="display text-[length:var(--text-tag)] leading-[0.95]"
+            />
+          </div>
 
           <motion.div
-            className="col-span-12 flex items-end justify-between gap-8 md:col-span-4 md:col-start-9"
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.2, delay: 1.5 }}
+            className="pointer-events-auto col-span-12 flex flex-col items-start gap-6 md:col-span-3 md:col-start-10"
+            style={{ opacity: lower, y: lowerY }}
           >
             <p className="lead max-w-[22rem]">{hero.sub}</p>
-            <a href="#silence" className="label group flex shrink-0 flex-col items-center gap-3" aria-label="Scroll to the story">
-              <span>{hero.scroll}</span>
-              <span className="relative block h-12 w-px overflow-hidden bg-silver/20">
-                <span className="absolute inset-x-0 top-0 h-1/2 animate-[scrollcue_2.4s_var(--ease-cine)_infinite] bg-ice" />
-              </span>
-            </a>
+            <MagneticLink href="#reserve" variant="solid">
+              {hero.cta}
+            </MagneticLink>
           </motion.div>
         </div>
       </div>
+
+      <DragZone hint className="left-1/2 top-[9svh] h-[52svh] w-[min(56vw,46rem)] -translate-x-1/2 max-md:hidden" />
     </section>
   )
 }
