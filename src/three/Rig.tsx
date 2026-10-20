@@ -16,7 +16,7 @@ const BASE_Z = 9.5 // camera distance the storyboard's x/y fractions are defined
 const FOV = 26
 
 /** Pose fields that are damped toward the storyboard. */
-const POSE_KEYS = ['x', 'y', 'scale', 'rotX', 'rotY', 'rotZ', 'explode', 'glow', 'fx', 'solo', 'tint'] as const
+const POSE_KEYS = ['x', 'y', 'scale', 'rotX', 'rotY', 'rotZ', 'explode', 'glow', 'fx', 'solo', 'tint', 'orbit'] as const
 
 /** Shots during which the product idles (gentle sway) — the two "poster" moments. */
 const isPosterShot = () => (story.index === 0 && story.t < 0.5) || story.activeId === 'reserve'
@@ -54,7 +54,7 @@ export function Rig({
   const { scene, camera, size, invalidate } = useThree()
 
   // --- state that lives across frames (refs: never triggers React renders) -------------
-  const cur = useRef({ x: 0, y: 0, scale: 1, rotX: 0, rotY: 0, rotZ: 0, explode: 0, glow: 0, fx: 0, solo: 0, tint: 0, init: false })
+  const cur = useRef({ x: 0, y: 0, scale: 1, rotX: 0, rotY: 0, rotZ: 0, explode: 0, glow: 0, fx: 0, solo: 0, tint: 0, orbit: 0, init: false })
   const pointer = useRef({ x: 0, y: 0 })
   const sp = useRef({
     camX: makeSpring(), camY: makeSpring(),
@@ -172,7 +172,7 @@ export function Rig({
     const refH = 2 * BASE_Z * Math.tan((FOV * Math.PI) / 360)
     const refW = refH * (size.width / size.height)
     const portrait = size.width < size.height
-    const fit = portrait ? refW / 3 : 1
+    const fit = portrait ? (refW / 3) * (size.width > 700 ? 0.72 : 1) : 1
     const zoom = lerp(0.8, 1, arrive)
 
     g.position.set(
@@ -250,6 +250,61 @@ export function Rig({
     if (bridge.poolCool) {
       bridge.poolCool.style.transform = pool
       bridge.poolCool.style.opacity = (c.tint * light).toFixed(3)
+    }
+
+    // light position for the background field (0..1, y up)
+    bridge.light.x = v.x * 0.5 + 0.5
+    bridge.light.y = v.y * 0.5 + 0.5
+
+    // orbit ring: centred on the product, scales with it
+    if (bridge.orbit) {
+      // centre the ring on the product's visual middle (the band rises above the cup axis)
+      const oc = tmp.current.v.set(0, 0.5, 0)
+      inner.current.updateWorldMatrix(true, false)
+      inner.current.localToWorld(oc)
+      oc.project(camera)
+      const os = 0.8 + Math.min(c.scale * fit, 1.6) * 0.3
+      bridge.orbit.style.transform = `translate3d(${(oc.x * halfW).toFixed(1)}px, ${(-oc.y * halfH).toFixed(1)}px, 0) scale(${os.toFixed(3)})`
+      bridge.orbit.style.opacity = (c.orbit * light).toFixed(3)
+    }
+
+    // dimensioned axis through the exploded right cup (anatomy only)
+    if (bridge.axis) {
+      const w = (story.weights.plate ?? 0) * light
+      if (w > 0.001 || bridge.axis.style.opacity !== '0') {
+        bridge.axis.style.opacity = w.toFixed(3)
+        if (w > 0.001) {
+          inner.current.updateWorldMatrix(true, false)
+          const a = tmp.current.v.set(-0.55, 0, 0)
+          inner.current.localToWorld(a)
+          a.project(camera)
+          const b2 = tmp.current.n.set(3.0, 0, 0)
+          inner.current.localToWorld(b2)
+          b2.project(camera)
+          const x1 = a.x * halfW + halfW
+          const y1 = -a.y * halfH + halfH
+          const x2 = b2.x * halfW + halfW
+          const y2 = -b2.y * halfH + halfH
+          const len = Math.hypot(x2 - x1, y2 - y1)
+          const ang = Math.atan2(y2 - y1, x2 - x1)
+          bridge.axis.style.transform = `translate3d(${x1.toFixed(1)}px, ${y1.toFixed(1)}px, 0) rotate(${ang.toFixed(4)}rad) scaleX(${(len / 1000).toFixed(4)})`
+        }
+      }
+    }
+
+    // sound rings: centred on the (mirrored) plate that carries the mic hotspot
+    if (bridge.rings) {
+      const w = (story.weights.mic ?? 0) * light
+      bridge.rings.style.opacity = w.toFixed(3)
+      const m = anchors.current.mic
+      if (m && w > 0.001) {
+        m.obj.updateWorldMatrix(true, false)
+        const q = tmp.current.v.set(0.5, 0.05, 0)
+        m.obj.localToWorld(q)
+        q.project(camera)
+        const rs = Math.min(c.scale * fit, 1.6) * 0.95
+        bridge.rings.style.transform = `translate3d(${(q.x * halfW).toFixed(1)}px, ${(-q.y * halfH).toFixed(1)}px, 0) scale(${rs.toFixed(3)})`
+      }
     }
 
     // 6 — first frames: tell the page the scene is alive (starts the title sequence) ---------

@@ -1,14 +1,14 @@
 import { motion, useMotionValue, useReducedMotion, useSpring } from 'motion/react'
 import { useEffect } from 'react'
+import { OrbitRing } from '../graphics/OrbitRing'
 import { spring } from '../motion/tokens'
 import type { SceneBridge } from '../story/hotspots'
 
 /**
- * The background atmosphere (z0). Deliberately only three things:
- *  1. a faint floor vignette,
- *  2. two soft pools of light that the 3D rig keeps under the product and crossfades
- *     between neutral (studio) and cool (technical sections) — moving the light with
- *     the product is what stops the background feeling like a flat backdrop,
+ * Foreground-of-the-background (z0, above the shader field, below the 3D canvas):
+ *  1. two soft pools of light that the 3D rig keeps under the product and crossfades
+ *     between neutral (studio) and cool (technical sections),
+ *  2. the ORBIT RING graphic centred on the product,
  *  3. a very low-intensity radial highlight that follows the pointer (fine pointers only).
  * All are transform/opacity-only layers; no blur, no filters.
  */
@@ -33,17 +33,13 @@ export function Atmosphere({ bridge, staticFallback }: { bridge: SceneBridge; st
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
       <div
-        className="absolute inset-0"
-        style={{ background: 'radial-gradient(120% 70% at 50% 118%, #14171c 0%, rgb(11 12 14 / 0) 60%)' }}
-      />
-      <div
         ref={(el) => {
           bridge.poolNeutral = el
         }}
         className={pool}
         style={{
           opacity: staticFallback ? 1 : 0,
-          background: 'radial-gradient(closest-side, #1d222a 0%, rgb(27 31 38 / 0.55) 38%, rgb(11 12 14 / 0) 100%)',
+          background: 'radial-gradient(closest-side, rgb(29 34 42 / 0.75) 0%, rgb(27 31 38 / 0.3) 38%, rgb(11 12 14 / 0) 100%)',
         }}
       />
       <div
@@ -53,7 +49,12 @@ export function Atmosphere({ bridge, staticFallback }: { bridge: SceneBridge; st
         className={pool}
         style={{
           opacity: 0,
-          background: 'radial-gradient(closest-side, #15283f 0%, rgb(18 34 56 / 0.5) 38%, rgb(11 12 14 / 0) 100%)',
+          background: 'radial-gradient(closest-side, rgb(21 40 63 / 0.75) 0%, rgb(18 34 56 / 0.3) 38%, rgb(11 12 14 / 0) 100%)',
+        }}
+      />
+      <OrbitRing
+        refCb={(el) => {
+          bridge.orbit = el
         }}
       />
       <motion.div

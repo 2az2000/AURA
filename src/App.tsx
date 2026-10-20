@@ -2,12 +2,16 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 import { brand, materials, type Finish } from './content/copy'
 import { Atmosphere } from './components/Atmosphere'
+import { FieldCanvas } from './background/FieldCanvas'
+import { Overlays } from './graphics/Overlays'
 import { Header } from './components/Header'
+import { PreLoader } from './components/PreLoader'
 import { Hotspots } from './components/Hotspots'
 import { StaticProduct } from './components/StaticProduct'
-import { Adaptive } from './components/sections/Adaptive'
+import { Acoustics } from './components/sections/Acoustics'
 import { Anatomy } from './components/sections/Anatomy'
 import { Fit } from './components/sections/Fit'
+import { Form } from './components/sections/Form'
 import { Hero } from './components/sections/Hero'
 import { Materials } from './components/sections/Materials'
 import { Reserve } from './components/sections/Reserve'
@@ -19,18 +23,25 @@ import type { HotspotId } from './story/storyboard'
 import type { SceneBridge } from './story/hotspots'
 
 // The 3D stack is the heaviest part of the bundle; load it after the page shell has painted.
-const Stage = lazy(() => import('./three/Stage'))
-
 const hasWebGL = detectWebGL()
+const stageImport = hasWebGL ? import('./three/Stage') : Promise.resolve(null)
+const Stage = lazy(() => stageImport as Promise<typeof import('./three/Stage')>)
 
-function Page({ onReady }: { onReady: () => void }) {
+function Page({ onReady, sceneReady }: { onReady: () => void; sceneReady: boolean }) {
   const [finish, setFinish] = useState<Finish>(materials.finishes[0])
   const [hotspot, setHotspot] = useState<HotspotId | null>(null)
   const [lost, setLost] = useState(false)
+  // real loading states for the PreLoader
+  const [fonts, setFonts] = useState(false)
+  const [chunk, setChunk] = useState(!hasWebGL)
+  useEffect(() => {
+    document.fonts?.ready.then(() => setFonts(true))
+    stageImport.then(() => setChunk(true))
+  }, [])
   const reduced = !!useReducedMotion()
   const { progress } = useIntro()
   // DOM elements the 3D rig writes into every frame (hotspots, light pools).
-  const bridge = useRef<SceneBridge>({ hotspots: {}, poolNeutral: null, poolCool: null })
+  const bridge = useRef<SceneBridge>({ hotspots: {}, poolNeutral: null, poolCool: null, orbit: null, axis: null, rings: null, light: { x: 0.5, y: 0.5 } })
   const webgl = hasWebGL && !lost
   const onLost = useCallback(() => {
     document.documentElement.dataset.webgl = 'false'
@@ -50,6 +61,7 @@ function Page({ onReady }: { onReady: () => void }) {
         Skip to content
       </a>
 
+      <FieldCanvas bridge={bridge.current} />
       <Atmosphere bridge={bridge.current} staticFallback={!webgl} />
 
       {webgl ? (
@@ -67,9 +79,11 @@ function Page({ onReady }: { onReady: () => void }) {
         <StaticProduct />
       )}
 
+      {webgl && <Overlays bridge={bridge.current} />}
       {webgl && <Hotspots bridge={bridge.current} active={hotspot} onActive={setHotspot} reduced={reduced} />}
 
       <Header />
+      <PreLoader fonts={fonts} chunk={chunk} scene={sceneReady || !webgl} />
 
       <main>
         {/* Text alternative for the 3D scene, which is hidden from assistive tech. */}
@@ -80,9 +94,10 @@ function Page({ onReady }: { onReady: () => void }) {
         </p>
         <Hero />
         <Silence />
+        <Form />
         <Anatomy />
         <Materials finish={finish} onFinish={setFinish} hotspot={hotspot} onHotspot={setHotspot} />
-        <Adaptive />
+        <Acoustics />
         <Fit hotspot={hotspot} onHotspot={setHotspot} />
         <Reserve />
       </main>
@@ -96,7 +111,7 @@ export default function App() {
   const onReady = useCallback(() => setReady(true), [])
   return (
     <IntroProvider ready={ready}>
-      <Page onReady={onReady} />
+      <Page onReady={onReady} sceneReady={ready} />
     </IntroProvider>
   )
 }

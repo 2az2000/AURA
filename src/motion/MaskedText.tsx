@@ -32,18 +32,21 @@ export function MaskedText({
   const reduce = useReducedMotion()
   const words = useMemo(() => {
     let n = 0
-    return lines.map((l) => l.split(' ').map((w) => ({ w, i: n++ })))
+    // A word wrapped in *asterisks* is set in the editorial serif italic.
+    return lines.map((l) =>
+      l.split(' ').map((raw) => ({ w: raw.replace(/\*/g, ''), em: raw.startsWith('*'), i: n++ })),
+    )
   }, [lines])
   const total = words.flat().length
 
   return (
     <Tag id={id} className={className}>
       {/* The animated words below are aria-hidden; this is the real text for assistive tech. */}
-      <span className="sr-only">{lines.join(' ')}</span>
+      <span className="sr-only">{lines.join(' ').replace(/\*/g, '')}</span>
       {words.map((line, li) => (
         <span key={li} className="block" aria-hidden="true">
-          {line.map(({ w, i }, wi) => (
-            <span key={i} className="inline-block overflow-hidden pb-[0.14em] align-bottom -mb-[0.14em]">
+          {line.map(({ w, em, i }, wi) => (
+            <span key={i} className={`inline-block overflow-hidden pb-[0.14em] align-bottom -mb-[0.14em] ${em ? 'serif' : ''}`}>
               {typeof trigger === 'string' ? (
                 <motion.span
                   className="inline-block"

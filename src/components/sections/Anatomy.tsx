@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { motion, useReducedMotion, useScroll } from 'motion/react'
 import { anatomy } from '../../content/copy'
+import { SheetMarks } from '../../graphics/SheetMarks'
 import { DrawRule } from '../../motion/Reveal'
 import { MaskedText } from '../../motion/MaskedText'
 import { story, useActiveShot } from '../../story/store'
@@ -35,19 +36,20 @@ export function Anatomy() {
     <section id="anatomy" aria-labelledby="anatomy-title" className="relative">
       <div ref={wrapper} className="relative" style={{ height: `${steps.length * STEP_VH + 20}svh` }}>
         <div className="scrim sticky top-0 h-svh">
-          <div className="layer-fg wrap grid h-full grid-cols-12 content-between py-[12svh] max-md:py-[10svh]">
+          <SheetMarks sheet={3} title="Anatomy" />
+          <div className="layer-fg wrap grid h-full grid-cols-12 content-between py-[12svh] portrait:py-[10svh]">
             {/* heading */}
             <div className="col-span-12 md:col-span-5">
               <SectionHead index={anatomy.index} label={anatomy.label} />
               <MaskedText
                 id="anatomy-title"
                 lines={anatomy.title}
-                className="display mt-6 text-[length:var(--text-h2)] max-md:text-4xl"
+                className="display mt-6 text-[length:var(--text-h2)] portrait:text-4xl"
               />
             </div>
 
             {/* part list — desktop: ruled list with the active part expanded */}
-            <div className="col-span-12 max-md:hidden md:col-span-4 md:col-start-1 md:row-start-2 md:self-end">
+            <div className="col-span-12 portrait:hidden md:col-span-4 md:col-start-1 md:row-start-2 md:self-end">
               <div className="relative pl-6">
                 {/* scroll-progress rail */}
                 <span aria-hidden="true" className="absolute bottom-0 left-0 top-0 w-px bg-silver/15" />

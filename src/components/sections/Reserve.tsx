@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from 'react'
 import { brand, reserve } from '../../content/copy'
+import { SheetMarks } from '../../graphics/SheetMarks'
 import { MagneticLink } from '../../motion/MagneticLink'
 import { MaskedText } from '../../motion/MaskedText'
 import { ClipReveal } from '../../motion/Reveal'
@@ -33,6 +34,7 @@ export function Reserve() {
         aria-labelledby="reserve-title"
         className="scrim relative flex min-h-[110svh] items-end pb-[8svh] pt-[54svh]"
       >
+        <SheetMarks sheet={7} title="Close" />
         <div className="layer-fg wrap flex flex-col items-center text-center">
           <SectionHead index={reserve.index} label={reserve.label} />
           <MaskedText

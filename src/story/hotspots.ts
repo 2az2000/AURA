@@ -28,4 +28,12 @@ export interface SceneBridge {
   hotspots: Partial<Record<HotspotId, HTMLElement | null>>
   poolNeutral: HTMLElement | null
   poolCool: HTMLElement | null
+  /** orbit-ring graphic, centred on the product */
+  orbit: HTMLElement | null
+  /** dimensioned axis drawn through the exploded cup */
+  axis: HTMLElement | null
+  /** sound rings emanating from the cup face */
+  rings: HTMLElement | null
+  /** product screen position, 0..1 (y up), written by the Rig, read by the background field */
+  light: { x: number; y: number }
 }

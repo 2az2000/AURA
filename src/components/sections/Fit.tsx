@@ -1,4 +1,5 @@
 import { fit } from '../../content/copy'
+import { SheetMarks } from '../../graphics/SheetMarks'
 import { ClipReveal, DrawRule } from '../../motion/Reveal'
 import { MaskedText } from '../../motion/MaskedText'
 import type { HotspotId } from '../../story/storyboard'
@@ -22,9 +23,10 @@ export function Fit({
       id="fit"
       data-shot="fit"
       aria-labelledby="fit-title"
-      className="scrim relative flex min-h-svh items-center py-[12svh] max-md:items-end max-md:pt-[52svh]"
+      className="scrim relative flex min-h-svh items-center py-[12svh] portrait:items-end portrait:pt-[52svh]"
     >
-      <SectionNumeral n="05" className="-left-[3vw] top-[10svh]" />
+      <SheetMarks sheet={6} title="Fit" />
+      <SectionNumeral n="06" className="-left-[3vw] top-[10svh]" />
       <div className="layer-fg wrap grid grid-cols-12">
         <div className="col-span-12 md:col-span-5 md:col-start-8">
           <SectionHead index={fit.index} label={fit.label} />
@@ -44,6 +46,7 @@ export function Fit({
                     {h ? (
                       <button
                         type="button"
+                        data-row={h}
                         aria-pressed={on}
                         onClick={() => onHotspot(on ? null : h)}
                         onPointerEnter={(e) => e.pointerType === 'mouse' && onHotspot(h)}

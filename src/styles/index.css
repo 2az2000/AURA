@@ -2,6 +2,7 @@
 @import '@fontsource-variable/space-grotesk';
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource/instrument-serif/400-italic.css';
 
 /*
  * AURA design tokens.
@@ -9,6 +10,9 @@
  * and exposed to Tailwind through @theme, so components never hard-code values.
  * See docs/ART_DIRECTION.md for the reasoning behind each token.
  */
+/* Portrait windows (phones AND tablets) use the stacked "product on top, copy below" layout. */
+@custom-variant portrait (@media (orientation: portrait));
+
 @theme {
   /* Colour — obsidian & graphite surfaces, one cold accent. */
   --color-obsidian: #0b0c0e;
@@ -24,6 +28,8 @@
   --font-display: 'Space Grotesk Variable', 'Inter Variable', system-ui, sans-serif;
   --font-sans: 'Inter Variable', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+  /* Editorial accent: one or two words per headline, always italic. */
+  --font-serif: 'Instrument Serif', 'Times New Roman', serif;
 
   /* Fluid type scale (min @ 360px → max @ 1440px) */
   --text-label: clamp(0.6875rem, 0.66rem + 0.1vw, 0.75rem);
@@ -46,6 +52,7 @@
 }
 
 html {
+  overflow-x: clip;
   background: var(--color-obsidian);
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
@@ -151,6 +158,17 @@ body {
 .layer-bg { position: relative; z-index: 0; }
 .layer-fg { position: relative; z-index: 3; }
 
+/* Editorial accent voice (Instrument Serif Italic). It is condensed and small on the body,
+   so it is scaled up slightly to match the grotesk's visual weight. */
+.serif {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  font-size: 1.1em;
+  line-height: 0.8;
+}
+
 /* Giant outlined section numeral: a depth layer that scrolls at its own rate. */
 .numeral {
   font-family: var(--font-display);
@@ -175,7 +193,7 @@ html[data-webgl='false'] [data-drag-zone] { display: none; }
 
 /* On phones the product sits in the top half and copy scrolls over it. A dark
    gradient behind the copy keeps it legible when the two overlap. */
-@media (max-width: 767px) {
+@media (orientation: portrait) {
   .scrim::before {
     content: '';
     position: absolute;
@@ -257,4 +275,28 @@ html[data-webgl='false'] [data-drag-zone] { display: none; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* ── Sound rings (acoustics) ────────────────────────────────────────── */
+@keyframes ringexpand {
+  0%   { transform: scale(0.16); opacity: 0; }
+  12%  { opacity: 0.85; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+.sound-ring { animation: ringexpand 5.4s cubic-bezier(0.22, 0.6, 0.36, 1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sound-ring { animation: none; opacity: 0.35; transform: scale(calc(0.3 + var(--i, 0) * 0.2)); }
+}
+
+/* hotspot connector: draws itself in when it (re)mounts */
+.hs-connector { stroke-dasharray: 1; stroke-dashoffset: 1; animation: hsdraw 0.9s var(--ease-out-expo) forwards; }
+@keyframes hsdraw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .hs-connector { stroke-dashoffset: 0; animation: none; } }
+
+/* Material studies fallback when WebGL is unavailable: a quiet graded panel instead of an empty box. */
+html[data-webgl='false'] .study-panel {
+  background:
+    radial-gradient(120% 80% at 30% 20%, rgb(191 200 213 / 0.14), transparent 60%),
+    repeating-linear-gradient(90deg, rgb(191 200 213 / 0.05) 0 1px, transparent 1px 4px),
+    #101216;
 }

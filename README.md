@@ -29,6 +29,8 @@ at 1.2 s · `?debug` show every hotspot.
 | Change how anything *moves* (durations, easings, springs, stagger, parallax, intro timing) | [src/motion/tokens.ts](src/motion/tokens.ts) |
 | Change where the product goes / how it rotates for each scroll position | [src/story/storyboard.ts](src/story/storyboard.ts) |
 | Change colours, type scale, layers | [src/styles/index.css](src/styles/index.css) (`@theme`) |
+| Change the background's character per section | `field` values in `storyboard.ts`; shader in [src/background/fieldShader.ts](src/background/fieldShader.ts) |
+| Change the technical drawings / diagrams / material panels | [src/graphics/](src/graphics/) |
 | Change the model's shape, materials or hotspot anchors | [src/three/Headphone.tsx](src/three/Headphone.tsx) |
 | Change the lighting or quality tiers | [src/three/Stage.tsx](src/three/Stage.tsx), [src/three/quality.ts](src/three/quality.ts) |
 | Change pointer / drag / intro choreography in 3D | [src/three/Rig.tsx](src/three/Rig.tsx) |
@@ -36,7 +38,7 @@ at 1.2 s · `?debug` show every hotspot.
 | Add a section | Create the component, give its `<section>` a `data-shot="id"`, add matching entries to **both** arrays in `storyboard.ts` (same order as on the page), and render it in `App.tsx`. |
 | Wire up the email form | `onSubmit` in [Reserve.tsx](src/components/sections/Reserve.tsx) — currently validates only. |
 
-Read in this order: [CLAUDE.md](CLAUDE.md) (conventions and gotchas) →
+Read in this order: [CLAUDE.md](CLAUDE.md) (conventions and gotchas) → [docs/VISUAL_DIRECTION.md](docs/VISUAL_DIRECTION.md) (the art direction) →
 [docs/MOTION_SPEC.md](docs/MOTION_SPEC.md) (the motion language) →
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 Background: [docs/REDESIGN_AUDIT.md](docs/REDESIGN_AUDIT.md), [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md),
@@ -50,6 +52,7 @@ shows a static SVG silhouette and stays fully readable. `prefers-reduced-motion`
 ## Licences
 
 - Code: yours to license as you wish (no licence file is included).
-- Fonts: Space Grotesk, Inter, JetBrains Mono — SIL Open Font License 1.1, self-hosted via Fontsource.
-- No third-party images, models or HDRIs are used. The AURA name and mark are invented for this project;
+- Fonts: Space Grotesk, Inter, JetBrains Mono, Instrument Serif — SIL Open Font License 1.1, self-hosted via Fontsource.
+- Three material textures from ambientCG (Metal009, Fabric039, Leather026), CC0 — see [docs/ASSETS.md](docs/ASSETS.md).
+- No other third-party images, models or HDRIs are used. The AURA name and mark are invented for this project;
   check for conflicts before using them commercially.

@@ -60,7 +60,7 @@ export function Header() {
           {brand.name}
         </a>
 
-        <nav aria-label={menu.label} className="hidden md:block">
+        <nav aria-label={menu.label} className="hidden lg:block">
           <ul className="flex items-center gap-10">
             {nav.map((n) => {
               const on = active === n.id
@@ -88,13 +88,13 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <MagneticLink href="#reserve" className="max-md:hidden py-2.5!">
+          <MagneticLink href="#reserve" className="max-lg:hidden py-2.5!">
             Register interest
           </MagneticLink>
           <button
             ref={btn}
             type="button"
-            className="label relative z-[70] flex h-10 items-center gap-3 md:hidden"
+            className="label relative z-[70] flex h-10 items-center gap-3 lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             onClick={() => setOpen((o) => !o)}
@@ -125,7 +125,7 @@ export function Header() {
             role="dialog"
             aria-modal="true"
             aria-label={menu.label}
-            className="fixed inset-0 z-[60] flex flex-col justify-center bg-obsidian px-[var(--gutter)] md:hidden"
+            className="fixed inset-0 z-[60] flex flex-col justify-center bg-obsidian px-[var(--gutter)] lg:hidden"
             initial={{ clipPath: 'inset(0 0 100% 0)' }}
             animate={{ clipPath: 'inset(0 0 0% 0)' }}
             exit={{ clipPath: 'inset(0 0 100% 0)' }}

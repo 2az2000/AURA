@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { anatomy, hotspotCopy } from '../content/copy'
 import { HOTSPOT_IDS, type SceneBridge } from '../story/hotspots'
+import { HotspotLink } from '../graphics/HotspotLink'
 import { story, useActiveShot } from '../story/store'
 import type { HotspotId } from '../story/storyboard'
 
@@ -50,6 +51,7 @@ export function Hotspots({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[4]">
+      <HotspotLink bridge={bridge} active={active} />
       {HOTSPOT_IDS.map((id) => {
         const c = hotspotCopy[id]
         const part = anatomy.parts.find((p) => p.key === id)

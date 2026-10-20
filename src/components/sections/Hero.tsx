@@ -4,6 +4,7 @@ import { useIntroSegment } from '../../motion/intro'
 import { MagneticLink } from '../../motion/MagneticLink'
 import { MaskedText } from '../../motion/MaskedText'
 import { stagger } from '../../motion/tokens'
+import { SheetMarks } from '../../graphics/SheetMarks'
 import { DragZone } from '../ui/DragZone'
 
 /**
@@ -76,13 +77,23 @@ export function Hero() {
         </h1>
       </motion.div>
 
+      <SheetMarks sheet={0} title="Title" />
+      {/* vertical edge metadata */}
+      <motion.p
+        aria-hidden="true"
+        className="label pointer-events-none absolute right-[0.9rem] top-1/2 z-[3] -translate-y-1/2 whitespace-nowrap text-[0.625rem] portrait:hidden"
+        style={{ opacity: kicker, writingMode: 'vertical-rl' }}
+      >
+        AURA — Over-ear — Concept 01 — Rev A
+      </motion.p>
+
       {/* Foreground */}
-      <div className="layer-fg wrap pointer-events-none flex flex-1 flex-col pb-[calc(var(--text-mega)*0.5)] pt-24 max-md:pb-[calc(var(--text-mega)*0.62)]">
+      <div className="layer-fg wrap pointer-events-none flex flex-1 flex-col pb-[calc(var(--text-mega)*0.5)] pt-24 portrait:pb-[calc(var(--text-mega)*0.62)]">
         <motion.p className="label" style={{ opacity: kicker }}>
           {hero.kicker}
         </motion.p>
 
-        <div className="grid flex-1 grid-cols-12 items-center gap-y-6 max-md:content-end max-md:items-end">
+        <div className="grid flex-1 grid-cols-12 items-center gap-y-6 portrait:content-end portrait:items-end">
           <div className="col-span-12 md:col-span-4">
             <MaskedText
               as="p"
@@ -104,7 +115,7 @@ export function Hero() {
         </div>
       </div>
 
-      <DragZone hint className="left-1/2 top-[9svh] h-[52svh] w-[min(56vw,46rem)] -translate-x-1/2 max-md:hidden" />
+      <DragZone hint className="left-1/2 top-[9svh] h-[52svh] w-[min(56vw,46rem)] -translate-x-1/2 portrait:hidden" />
     </section>
   )
 }

@@ -16,7 +16,7 @@ import { shotsTall, shotsWide, type HotspotId, type Shot } from './storyboard'
  */
 type Listener = () => void
 
-const clone = (s: Shot): Shot => ({ ...s, hotspots: [] })
+const clone = (s: Shot): Shot => ({ ...s, field: { ...s.field }, hotspots: [] })
 
 class StoryStore {
   private centers: number[] = []
@@ -95,6 +95,11 @@ class StoryStore {
     o.glow = lerp(a.glow, b.glow, t)
     o.fx = lerp(a.fx, b.fx, t)
     o.solo = lerp(a.solo, b.solo, t)
+    o.orbit = lerp(a.orbit, b.orbit, t)
+    o.field.lines = lerp(a.field.lines, b.field.lines, t)
+    o.field.contour = lerp(a.field.contour, b.field.contour, t)
+    o.field.beam = lerp(a.field.beam, b.field.beam, t)
+    o.field.dust = lerp(a.field.dust, b.field.dust, t)
     o.tint = lerp(a.tint, b.tint, t)
     this.index = i
     this.t = t

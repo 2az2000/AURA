@@ -24,8 +24,14 @@ src/
     Reveal.tsx                DrawRule, ClipReveal
     Parallax.tsx              layer drifting at its own rate
     MagneticLink.tsx          the button/link: magnet, press, label roll, fill sweep
+  background/
+    FieldCanvas.tsx           shader background (light pool, beam, frequency lines, contours, dust)
+    fieldShader.ts            the GLSL
+  graphics/                   custom graphic kit (see MOTION_SPEC §11)
+    OrbitRing · SheetMarks · Overlays (axis + sound rings) · WaveRibbon · Spectrum · CancelDiagram
+    OrthoSheet (front/profile/plan drawings) · MaterialStudies (WebGL panels) · HotspotLink
   story/
-    storyboard.ts             per-shot product pose (THE file to re-direct the camera)
+    storyboard.ts             per-shot product pose + background character (THE file to re-direct the camera)
     store.ts                  scroll → pose + active shot + hotspot weights (plain module state)
     hotspots.ts               hotspot ids + SceneBridge type (no three imports — keeps the 3D bundle lazy)
   components/
@@ -33,7 +39,8 @@ src/
     Atmosphere.tsx            floor vignette, two light pools, pointer glow
     Hotspots.tsx              DOM markers the Rig positions
     StaticProduct.tsx         SVG fallback when WebGL is unavailable
-    sections/                 Hero, Silence, Anatomy (pinned), Materials, Adaptive, Fit, Reserve
+    PreLoader.tsx             real-state loading counter
+    sections/                 Hero, Silence, Form, Anatomy (pinned), Materials, Acoustics, Fit, Reserve
     ui/                       SectionHead, SectionNumeral, DragZone
   three/                      lazy-loaded 3D bundle
     Stage.tsx                 <Canvas>, lighting cards, quality tier wiring
