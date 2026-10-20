@@ -35,6 +35,7 @@ export const hero = {
   cta: 'Register interest',
   scroll: 'Scroll',
   drag: 'Drag to inspect',
+  discover: 'Discover the product',
 }
 
 /**

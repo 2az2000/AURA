@@ -17,6 +17,8 @@ import { intro as T, easeFn } from './tokens'
 interface IntroContext {
   progress: MotionValue<number>
   skip: () => void
+  /** Play the title sequence again (used when a route swap installs a new page). */
+  replay: () => void
 }
 
 const Ctx = createContext<IntroContext | null>(null)
@@ -72,7 +74,15 @@ export function IntroProvider({ ready, children }: { ready: boolean; children: R
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const value = useMemo(() => ({ progress, skip }), [progress])
+  const replay = () => {
+    if (reduce || frozen.current !== null) return
+    controls.current?.stop()
+    progress.set(0)
+    started.current = true
+    controls.current = animate(progress, 1, { duration: T.total, ease: 'linear' })
+  }
+
+  const value = useMemo(() => ({ progress, skip, replay }), [progress])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

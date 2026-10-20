@@ -11,11 +11,14 @@ export function SheetMarks({
   sheet,
   title,
   className = '',
+  block,
 }: {
   /** 0-based sheet number */
   sheet: number
   title: string
   className?: string
+  /** Replace the default title-block text (used by the /product page, which has its own numbering). */
+  block?: { left: string; right: string }
 }) {
   const reduce = useReducedMotion()
   const corner = (pos: string, rot: string) => (
@@ -38,9 +41,9 @@ export function SheetMarks({
       {corner('left-0 bottom-0', 'border-l border-b')}
       {corner('right-0 bottom-0', 'border-r border-b')}
       <p className="label absolute bottom-0 left-6 text-[0.625rem] portrait:left-5">
-        AURA · Concept 01 · Sheet {String(sheet).padStart(2, '0')} / {String(SHEETS - 1).padStart(2, '0')}
+        {block ? block.left : `AURA · Concept 01 · Sheet ${String(sheet).padStart(2, '0')} / ${String(SHEETS - 1).padStart(2, '0')}`}
       </p>
-      <p className="label absolute bottom-0 right-6 text-[0.625rem] portrait:hidden">{title} · Rev A</p>
+      <p className="label absolute bottom-0 right-6 text-[0.625rem] portrait:hidden">{block ? block.right : `${title} · Rev A`}</p>
     </div>
   )
 }

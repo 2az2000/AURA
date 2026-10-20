@@ -4,6 +4,8 @@ import { brand, menu, nav } from '../content/copy'
 import { useIntroSegment } from '../motion/intro'
 import { MagneticLink } from '../motion/MagneticLink'
 import { duration, ease, spring, stagger } from '../motion/tokens'
+import { prefetchProduct } from '../product/lazy'
+import { Link, useRouter } from '../router'
 import { useActiveSection } from '../story/store'
 
 /**
@@ -19,6 +21,7 @@ export function Header() {
   const { scrollYProgress } = useScroll()
   const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 30, mass: 0.4 })
   const active = useActiveSection()
+  const { go } = useRouter()
   const reduce = useReducedMotion()
   const arrive = useIntroSegment(1.9, 2.5)
   const [open, setOpen] = useState(false)
@@ -84,6 +87,16 @@ export function Header() {
                 </li>
               )
             })}
+            <li className="relative">
+              <Link
+                to="/product"
+                onPointerEnter={prefetchProduct}
+                onFocus={prefetchProduct}
+                className="label block border-b border-ice/50 py-2 text-ice transition-colors duration-300 hover:text-bone"
+              >
+                Discover →
+              </Link>
+            </li>
           </ul>
         </nav>
 
@@ -132,11 +145,17 @@ export function Header() {
             transition={{ duration: reduce ? 0 : duration.base, ease: ease.inOut }}
           >
             <ul className="flex flex-col gap-2">
-              {[...nav, { id: 'reserve', label: 'Register interest' }].map((n, i) => (
+              {[...nav, { id: 'reserve', label: 'Register interest' }, { id: 'product', label: 'Discover the product' }].map((n, i) => (
                 <li key={n.id} className="overflow-hidden">
                   <motion.a
-                    href={`#${n.id}`}
-                    onClick={() => setOpen(false)}
+                    href={n.id === 'product' ? '/product' : `#${n.id}`}
+                    onClick={(e) => {
+                      setOpen(false)
+                      if (n.id === 'product') {
+                        e.preventDefault()
+                        go('/product')
+                      }
+                    }}
                     className="display flex items-baseline gap-5 py-2 text-5xl"
                     initial={{ y: '110%' }}
                     animate={{ y: 0 }}

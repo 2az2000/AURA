@@ -59,11 +59,11 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
     const u = (n: string) => gl.getUniformLocation(prog, n)
     const U = {
       res: u('uRes'), time: u('uTime'), ptr: u('uPtr'), light: u('uLight'), scroll: u('uScroll'),
-      tint: u('uTint'), lines: u('uLines'), contour: u('uContour'), beam: u('uBeam'), dust: u('uDust'), intro: u('uIntro'),
+      tint: u('uTint'), lines: u('uLines'), contour: u('uContour'), beam: u('uBeam'), dust: u('uDust'), rings: u('uRings'), grid: u('uGrid'), intro: u('uIntro'),
     }
 
     // smoothed state
-    const st = { lines: 0, contour: 0, beam: 0, dust: 0, tint: 0, px: 0.5, py: 0.5, lx: 0.5, ly: 0.5 }
+    const st = { lines: 0, contour: 0, beam: 0, dust: 0, rings: 0, grid: 0, tint: 0, px: 0.5, py: 0.5, lx: 0.5, ly: 0.5 }
     const ptr = { x: 0.5, y: 0.5 }
     const onMove = (e: PointerEvent) => {
       ptr.x = e.clientX / window.innerWidth
@@ -93,6 +93,8 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
       st.contour = damp(st.contour, f.contour, k, dt)
       st.beam = damp(st.beam, f.beam, k, dt)
       st.dust = damp(st.dust, f.dust, k, dt)
+      st.rings = damp(st.rings, f.rings, k, dt)
+      st.grid = damp(st.grid, f.grid, k, dt)
       st.tint = damp(st.tint, story.pose.tint, k, dt)
       st.px = damp(st.px, ptr.x, 3, dt)
       st.py = damp(st.py, ptr.y, 3, dt)
@@ -110,6 +112,8 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
       gl.uniform1f(U.contour, st.contour)
       gl.uniform1f(U.beam, st.beam)
       gl.uniform1f(U.dust, st.dust)
+      gl.uniform1f(U.rings, st.rings)
+      gl.uniform1f(U.grid, st.grid)
       gl.uniform1f(U.intro, intro)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
     }

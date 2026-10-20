@@ -36,4 +36,6 @@ export interface SceneBridge {
   rings: HTMLElement | null
   /** product screen position, 0..1 (y up), written by the Rig, read by the background field */
   light: { x: number; y: number }
+  /** live product orientation (radians) / scale, written by the Rig; read by readouts */
+  stats: { rotY: number; rotX: number; scale: number }
 }

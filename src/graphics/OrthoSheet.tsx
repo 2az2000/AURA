@@ -27,7 +27,7 @@ const rr = (x: number, y: number, w: number, h: number, r: number) =>
 const ellipse = (cx: number, cy: number, rx: number, ry: number) =>
   `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}Z`
 
-interface Stroke {
+export interface Stroke {
   d: string
   kind?: 'ink' | 'hidden' | 'dim' | 'center'
 }
@@ -140,6 +140,10 @@ function plan() {
     ],
   }
 }
+
+/** Front-view strokes and the drawing's coordinate box, for reuse as a large silhouette trace. */
+export const frontStrokes = () => front().strokes
+export const SHEET_BOX = { w: VBW, h: VBH }
 
 const BUILD = { front, profile, plan }
 

@@ -23,7 +23,7 @@ export function HotspotLink({ bridge, active }: { bridge: SceneBridge; active: H
   const svg = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
-    const rowId = active ? ROW_FOR[active] : undefined
+    const rowId = active ? ROW_FOR[active] ?? active : undefined
     const el = active ? bridge.hotspots[active] : null
     const row = rowId ? document.querySelector<HTMLElement>(`[data-row="${rowId}"]`) : null
     const wide = window.matchMedia('(min-width: 768px)').matches
@@ -35,10 +35,25 @@ export function HotspotLink({ bridge, active }: { bridge: SceneBridge; active: H
     svg.current.style.opacity = '1'
     let raf = 0
     const tick = () => {
+      if (el.dataset.on !== 'true') {
+        svg.current!.style.opacity = '0'
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      svg.current!.style.opacity = '1'
       const a = el.getBoundingClientRect()
       const r = row.getBoundingClientRect()
       const x1 = a.left
       const y1 = a.top
+      if (x1 >= r.left && x1 <= r.right && y1 < r.top) {
+        // the row is directly below the hotspot: drop straight onto its top edge
+        const y2 = r.top - 6
+        path.current!.setAttribute('d', `M${x1.toFixed(1)} ${y1.toFixed(1)}V${y2.toFixed(1)}`)
+        dot.current!.setAttribute('cx', x1.toFixed(1))
+        dot.current!.setAttribute('cy', y2.toFixed(1))
+        raf = requestAnimationFrame(tick)
+        return
+      }
       const leftOfRow = x1 < r.left
       const x2 = leftOfRow ? r.left - 10 : r.right + 10
       const y2 = r.top + Math.min(r.height / 2, 22)

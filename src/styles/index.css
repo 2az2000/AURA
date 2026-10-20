@@ -300,3 +300,21 @@ html[data-webgl='false'] .study-panel {
     repeating-linear-gradient(90deg, rgb(191 200 213 / 0.05) 0 1px, transparent 1px 4px),
     #101216;
 }
+
+/* ── Product page graphics ──────────────────────────────────────────── */
+@keyframes drvmove { 0%, 100% { transform: translateY(5px); } 50% { transform: translateY(-9px); } }
+@keyframes drvwave { 0% { transform: translateY(0) scale(0.7); opacity: 0; } 20% { opacity: 0.9; } 100% { transform: translateY(-46px) scale(1.5); opacity: 0; } }
+.drv-move { animation: drvmove 1.7s ease-in-out infinite; }
+.drv-wave { transform-box: fill-box; transform-origin: 50% 100%; animation: drvwave 1.7s cubic-bezier(0.22, 0.6, 0.36, 1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .drv-move, .drv-wave { animation: none; }
+  .drv-wave { opacity: 0.5; }
+}
+
+/* loupe fallback when WebGL is unavailable */
+.loupe-fallback {
+  background:
+    radial-gradient(120% 90% at 30% 25%, rgb(191 200 213 / 0.22), transparent 62%),
+    repeating-linear-gradient(90deg, rgb(191 200 213 / 0.06) 0 1px, transparent 1px 4px),
+    #101216;
+}

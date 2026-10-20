@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import { motion, useMotionValue, useReducedMotion, useSpring } from 'motion/react'
+import { useRouter } from '../router'
 import { magnet, spring } from './tokens'
 
 type Variant = 'solid' | 'outline'
@@ -29,6 +30,7 @@ export function MagneticLink({
   className?: string
 } & React.AriaAttributes) {
   const ref = useRef<HTMLElement | null>(null)
+  const { go } = useRouter()
   const reduce = useReducedMotion()
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -91,6 +93,16 @@ export function MagneticLink({
     onPointerMove: move,
     onPointerLeave: leave,
     whileTap: reduce ? undefined : { scale: 0.96 },
+    // internal paths ("/product", "/#reserve") go through the router so the canvas persists
+    ...(href && href.startsWith('/')
+      ? {
+          onClick: (e: React.MouseEvent) => {
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+            e.preventDefault()
+            go(href)
+          },
+        }
+      : {}),
     ...aria,
   }
 

@@ -21,13 +21,23 @@ Requires Node 20+ (developed on Node 22).
 QA switches (query string): `?q=high|medium|low` lock the 3D quality tier · `?intro=1.2` freeze the title sequence
 at 1.2 s · `?debug` show every hotspot.
 
+## Routes
+
+| Path | What |
+|---|---|
+| `/` | the overview: eight sheets |
+| `/product` | "Discover AURA": a five-scene interactive product film (Arrival → Form → Craft → Inside → Close) |
+
+Navigation between them plays a curtain transition and keeps the 3D canvas alive. `vercel.json` makes direct links/refresh of `/product` work on Vercel.
+
 ## Where to change things
 
 | I want to… | Edit |
 |---|---|
 | Change any text, specs, finish names/colours, hotspot descriptions | [src/content/copy.ts](src/content/copy.ts) |
 | Change how anything *moves* (durations, easings, springs, stagger, parallax, intro timing) | [src/motion/tokens.ts](src/motion/tokens.ts) |
-| Change where the product goes / how it rotates for each scroll position | [src/story/storyboard.ts](src/story/storyboard.ts) |
+| Change where the product goes / how it rotates for each scroll position | [src/story/storyboard.ts](src/story/storyboard.ts) (overview) · [src/product/productStory.ts](src/product/productStory.ts) (/product) |
+| Change /product copy or scenes | [src/content/product.ts](src/content/product.ts) · `src/product/scenes/` |
 | Change colours, type scale, layers | [src/styles/index.css](src/styles/index.css) (`@theme`) |
 | Change the background's character per section | `field` values in `storyboard.ts`; shader in [src/background/fieldShader.ts](src/background/fieldShader.ts) |
 | Change the technical drawings / diagrams / material panels | [src/graphics/](src/graphics/) |
@@ -40,7 +50,7 @@ at 1.2 s · `?debug` show every hotspot.
 
 Read in this order: [CLAUDE.md](CLAUDE.md) (conventions and gotchas) → [docs/VISUAL_DIRECTION.md](docs/VISUAL_DIRECTION.md) (the art direction) →
 [docs/MOTION_SPEC.md](docs/MOTION_SPEC.md) (the motion language) →
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → [docs/PERFORMANCE.md](docs/PERFORMANCE.md). The /product page has its own set: `docs/PRODUCT_EXPERIENCE_AUDIT.md`, `PRODUCT_ART_DIRECTION.md`, `PRODUCT_MOTION_SPEC.md`, `PRODUCT_PERFORMANCE.md`.
 Background: [docs/REDESIGN_AUDIT.md](docs/REDESIGN_AUDIT.md), [docs/ART_DIRECTION.md](docs/ART_DIRECTION.md),
 [docs/RESEARCH.md](docs/RESEARCH.md).
 

@@ -16,7 +16,7 @@ const BASE_Z = 9.5 // camera distance the storyboard's x/y fractions are defined
 const FOV = 26
 
 /** Pose fields that are damped toward the storyboard. */
-const POSE_KEYS = ['x', 'y', 'scale', 'rotX', 'rotY', 'rotZ', 'explode', 'glow', 'fx', 'solo', 'tint', 'orbit'] as const
+const POSE_KEYS = ['x', 'y', 'scale', 'rotX', 'rotY', 'rotZ', 'explode', 'glow', 'fx', 'fy', 'solo', 'tint', 'orbit'] as const
 
 /** Shots during which the product idles (gentle sway) — the two "poster" moments. */
 const isPosterShot = () => (story.index === 0 && story.t < 0.5) || story.activeId === 'reserve'
@@ -54,7 +54,7 @@ export function Rig({
   const { scene, camera, size, invalidate } = useThree()
 
   // --- state that lives across frames (refs: never triggers React renders) -------------
-  const cur = useRef({ x: 0, y: 0, scale: 1, rotX: 0, rotY: 0, rotZ: 0, explode: 0, glow: 0, fx: 0, solo: 0, tint: 0, orbit: 0, init: false })
+  const cur = useRef({ x: 0, y: 0, scale: 1, rotX: 0, rotY: 0, rotZ: 0, explode: 0, glow: 0, fx: 0, fy: 0, solo: 0, tint: 0, orbit: 0, init: false, epoch: -1 })
   const pointer = useRef({ x: 0, y: 0 })
   const sp = useRef({
     camX: makeSpring(), camY: makeSpring(),
@@ -123,6 +123,11 @@ export function Rig({
     const pose = story.pose
     const k = sp.current
 
+    // a new page configured its storyboard: snap to its first pose (the arrival then plays)
+    if (c.epoch !== story.epoch) {
+      c.init = false
+      c.epoch = story.epoch
+    }
     if (!c.init) {
       Object.assign(c, { ...pose, init: true })
       c.glow = 0
@@ -173,22 +178,29 @@ export function Rig({
     const refW = refH * (size.width / size.height)
     const portrait = size.width < size.height
     const fit = portrait ? (refW / 3) * (size.width > 700 ? 0.72 : 1) : 1
-    const zoom = lerp(0.8, 1, arrive)
+    const macro = story.arrival === 'macro'
+    // 'spin': rises and turns in from afar (home). 'macro': starts filling the frame on the face plate, pulls back and turns.
+    const zoom = macro ? lerp(2.4, 1, arrive) : lerp(0.8, 1, arrive)
+    const fxEff = macro ? lerp(1.23, c.fx, arrive) : c.fx
+    const rotYBase = macro ? lerp(-1.4, c.rotY, arrive) : c.rotY - (1 - arrive) * 1.5
 
     g.position.set(
-      c.x * refW,
-      c.y * refH - (1 - arrive) * 0.06 * refH + Math.sin(t * 0.7) * 0.035 * sway,
+      c.x * refW * (macro ? arrive : 1),
+      c.y * refH - (macro ? 0 : (1 - arrive) * 0.06 * refH) + Math.sin(t * 0.7) * 0.035 * sway,
       0,
     )
     g.scale.setScalar(c.scale * fit * zoom)
     g.rotation.set(
       c.rotX + tiltX + Math.sin(t * 0.45) * 0.015 * sway,
-      c.rotY + tiltY + dragYaw + Math.sin(t * 0.3) * 0.035 * sway - (1 - arrive) * 1.5,
+      rotYBase + tiltY + dragYaw + Math.sin(t * 0.3) * 0.035 * sway,
       c.rotZ,
     )
-    inner.current.position.set(-c.fx, 0, 0)
+    inner.current.position.set(-fxEff, -c.fy, 0)
+    bridge.stats.rotY = g.rotation.y
+    bridge.stats.rotX = g.rotation.x
+    bridge.stats.scale = g.scale.x
 
-    camera.position.set(camX, camY, BASE_Z * lerp(1.14, 1, arrive))
+    camera.position.set(camX, camY, BASE_Z * (macro ? 1 : lerp(1.14, 1, arrive)))
     camera.lookAt(0, 0, 0)
     camera.updateMatrixWorld()
 

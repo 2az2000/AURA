@@ -6,12 +6,24 @@ React 19 · TypeScript · Vite · Tailwind CSS v4 · Three.js via `@react-three/
 Motion (`motion/react`). No other runtime dependencies: no state library, no scroll-hijacking library, no GSAP
 (Motion + a small hand-written spring cover every need; see `REDESIGN_AUDIT.md` §6).
 
+## Routing and the persistent shell
+
+`App` = `RouterProvider` → `IntroProvider` → `Shell`. `src/router.tsx` holds the route (`home` | `product`), navigates with the History API,
+and plays a curtain between routes. `Shell` owns everything that must survive a route change — shader background, light pools, the lazy
+`Stage` (WebGL), `Overlays`, `Hotspots`, `PreLoader` and shared state — and renders `HomePage` or the lazy `ProductPage` inside it.
+On a route change `Shell` calls `story.configure(...)` with that page's storyboard (bumping `story.epoch`, which makes the Rig snap to
+the new first pose) and replays the title sequence. The product page's arrival uses the Rig's `macro` style (the homepage uses `spin`).
+
 ## File map
 
 ```
 src/
   main.tsx                    entry; sets html[data-webgl]
-  App.tsx                     page assembly, finish + hotspot state, scene bridge, WebGL fallback
+  App.tsx                     router + intro clock + shell
+  router.tsx                  tiny History API router, curtain transition, <Link>
+  Shell.tsx                   persistent canvas/background/overlays; swaps pages per route
+  pages/HomePage.tsx          the overview
+  product/                    the /product film (lazy): ProductPage, scenes/, ProductChrome, productStory, lazy
   styles/index.css            design tokens (@theme), type roles, layers, hotspot + grain CSS
   content/copy.ts             ALL copy, finishes, hotspot text
   lib/math.ts · lib/spring.ts clamp/lerp/damp · per-frame spring + "still moving?" test

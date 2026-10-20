@@ -5,6 +5,8 @@ import { MagneticLink } from '../../motion/MagneticLink'
 import { MaskedText } from '../../motion/MaskedText'
 import { stagger } from '../../motion/tokens'
 import { SheetMarks } from '../../graphics/SheetMarks'
+import { prefetchProduct } from '../../product/lazy'
+import { Link } from '../../router'
 import { DragZone } from '../ui/DragZone'
 
 /**
@@ -111,6 +113,15 @@ export function Hero() {
             <MagneticLink href="#reserve" variant="solid">
               {hero.cta}
             </MagneticLink>
+            <Link
+              to="/product"
+              onPointerEnter={prefetchProduct}
+              onFocus={prefetchProduct}
+              className="label group inline-flex items-center gap-3 border-b border-ice/50 pb-1.5 text-ice transition-colors duration-300 hover:text-bone"
+            >
+              {hero.discover}
+              <span aria-hidden="true" className="transition-transform duration-500 ease-[var(--ease-out-expo)] group-hover:translate-x-1">→</span>
+            </Link>
           </motion.div>
         </div>
       </div>

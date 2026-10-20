@@ -9,6 +9,7 @@
  *  - 14 flowing frequency lines, perturbed by the pointer
  *  - iso-contour lines of a slow noise field
  *  - three dust layers with depth parallax (pointer + scroll)
+ *  - concentric sound ripples and a fading technical grid, both centred on the product
  */
 export const VERT = `
 attribute vec2 aPos;
@@ -27,6 +28,8 @@ uniform float uLines;
 uniform float uContour;
 uniform float uBeam;
 uniform float uDust;
+uniform float uRings;
+uniform float uGrid;
 uniform float uIntro;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -108,6 +111,17 @@ void main() {
     dust += step(0.8, h) * smoothstep(size, 0.0, dd) * tw * (0.55 - 0.13 * fl);
   }
   col += vec3(0.78, 0.86, 1.0) * dust * uDust * 0.45;
+
+  // 6 — sound ripples: concentric rings travelling outward from the product
+  float rr = length(p - lp);
+  float ripple = pow(0.5 + 0.5 * sin(rr * 36.0 - uTime * 1.3), 16.0) * exp(-rr * 1.9);
+  col += vec3(0.42, 0.62, 1.0) * ripple * uRings * 0.3;
+
+  // 7 — technical grid that fades out from the product
+  vec2 gf = fract((p - lp) * 9.0);
+  vec2 gd = min(gf, 1.0 - gf);
+  float gline = 1.0 - smoothstep(0.0, 0.035, min(gd.x, gd.y));
+  col += vec3(0.6, 0.72, 0.9) * gline * exp(-rr * rr * 1.2) * uGrid * 0.07;
 
   // vignette + dither (kills banding in the dark gradients)
   col *= 1.0 - 0.55 * dot(uv - 0.5, uv - 0.5);
