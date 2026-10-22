@@ -3,7 +3,7 @@ import type { SceneBridge } from '../story/hotspots'
 import type { HotspotId } from '../story/storyboard'
 
 /** Which list row (`data-row`) explains each hotspot. Hotspots without a row get no connector. */
-const ROW_FOR: Partial<Record<HotspotId, string>> = {
+export const ROW_FOR: Partial<Record<HotspotId, string>> = {
   face: 'face',
   cover: 'cover',
   light: 'light',
@@ -25,7 +25,10 @@ export function HotspotLink({ bridge, active }: { bridge: SceneBridge; active: H
   useEffect(() => {
     const rowId = active ? ROW_FOR[active] ?? active : undefined
     const el = active ? bridge.hotspots[active] : null
-    const row = rowId ? document.querySelector<HTMLElement>(`[data-row="${rowId}"]`) : null
+    // an open hero card wins over rows further down the page that share an id
+    const row = rowId
+      ? document.querySelector<HTMLElement>(`[data-explore] [data-row="${rowId}"]`) ?? document.querySelector<HTMLElement>(`[data-row="${rowId}"]`)
+      : null
     const wide = window.matchMedia('(min-width: 768px)').matches
     if (!svg.current || !path.current || !dot.current) return
     if (!active || !el || !row || !wide) {

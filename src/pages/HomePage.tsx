@@ -1,5 +1,6 @@
 import { brand, type Finish } from '../content/copy'
 import { Header } from '../components/Header'
+import { HeroExplore } from '../components/HeroExplore'
 import { Acoustics } from '../components/sections/Acoustics'
 import { Anatomy } from '../components/sections/Anatomy'
 import { Fit } from '../components/sections/Fit'
@@ -25,6 +26,7 @@ export default function HomePage({
   return (
     <>
       <Header />
+      <HeroExplore onHotspot={onHotspot} />
       <main>
         {/* Text alternative for the 3D scene, which is hidden from assistive tech. */}
         <p className="sr-only">

@@ -13,6 +13,8 @@ import { prefetchProduct, ProductPage } from './product/lazy'
 import { productShotsTall, productShotsWide } from './product/productStory'
 import { useRouter } from './router'
 import type { SceneBridge } from './story/hotspots'
+import { DiscoveryHud } from './components/DiscoveryHud'
+import { play } from './play/store'
 import { story } from './story/store'
 import { shotsTall, shotsWide, type HotspotId } from './story/storyboard'
 import HomePage from './pages/HomePage'
@@ -48,7 +50,7 @@ export function Shell({ onReady, sceneReady }: { onReady: () => void; sceneReady
     orbit: null,
     axis: null,
     rings: null,
-    light: { x: 0.5, y: 0.5 },
+    light: { x: 0.5, y: 0.5, boost: 0, spin: 0, calm: 0 },
     stats: { rotY: 0, rotX: 0, scale: 1 },
   })
   const webgl = hasWebGL && !lost
@@ -120,8 +122,17 @@ export function Shell({ onReady, sceneReady }: { onReady: () => void; sceneReady
           <ProductPage bridge={bridge.current} onHotspot={setHotspot} />
         </Suspense>
       ) : (
-        <HomePage finish={finish} onFinish={setFinish} hotspot={hotspot} onHotspot={setHotspot} />
+        <HomePage
+          finish={finish}
+          onFinish={(f) => {
+            setFinish(f)
+            if (f.id !== materials.finishes[0].id) play.found('finish')
+          }}
+          hotspot={hotspot}
+          onHotspot={setHotspot}
+        />
       )}
+      {route === 'home' && webgl && <DiscoveryHud />}
     </div>
   )
 }

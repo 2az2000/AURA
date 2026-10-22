@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { anatomy, hotspotCopy } from '../content/copy'
 import { HOTSPOT_IDS, type SceneBridge } from '../story/hotspots'
 import { HotspotLink } from '../graphics/HotspotLink'
+import { play, usePlay } from '../play/store'
+import { partOf } from '../story/explorePoses'
 import { story, useActiveShot } from '../story/store'
 import type { HotspotId } from '../story/storyboard'
 
@@ -33,6 +35,8 @@ export function Hotspots({
   reduced: boolean
 }) {
   const shot = useActiveShot()
+  const exploring = usePlay((s) => !!s.explore)
+  const compact = shot === 'hero' || exploring
   const current = shot.startsWith('anatomy-') ? shot.slice('anatomy-'.length) : null
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onActive(null)
@@ -41,6 +45,12 @@ export function Hotspots({
   }, [onActive])
 
   const activate = (id: HotspotId) => {
+    // on the title sheet (or while a part is open) a marker flies the camera to its part
+    const part = shot === 'hero' || exploring ? partOf(id) : null
+    if (part) {
+      play.openPart(part)
+      return
+    }
     if (ANATOMY_IDS.includes(id)) {
       const y = story.scrollTargetFor(`anatomy-${id}`)
       if (y !== null) window.scrollTo({ top: y, behavior: reduced ? 'auto' : 'smooth' })
@@ -65,6 +75,7 @@ export function Hotspots({
             data-hotspot={id}
             data-on="false"
             data-current={current === id}
+            data-compact={compact}
             ref={(el) => {
               bridge.hotspots[id] = el
             }}

@@ -3,6 +3,7 @@ import { useReducedMotion } from 'motion/react'
 import { clamp, damp } from '../lib/math'
 import { useIntro } from '../motion/intro'
 import { easeFn, intro as T } from '../motion/tokens'
+import { play } from '../play/store'
 import type { SceneBridge } from '../story/hotspots'
 import { story } from '../story/store'
 import { detectTier } from '../three/quality'
@@ -60,10 +61,11 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
     const U = {
       res: u('uRes'), time: u('uTime'), ptr: u('uPtr'), light: u('uLight'), scroll: u('uScroll'),
       tint: u('uTint'), lines: u('uLines'), contour: u('uContour'), beam: u('uBeam'), dust: u('uDust'), rings: u('uRings'), grid: u('uGrid'), intro: u('uIntro'),
+      boost: u('uBoost'), spin: u('uSpin'), ripA: u('uRipA'), ripB: u('uRipB'), ripC: u('uRipC'),
     }
 
     // smoothed state
-    const st = { lines: 0, contour: 0, beam: 0, dust: 0, rings: 0, grid: 0, tint: 0, px: 0.5, py: 0.5, lx: 0.5, ly: 0.5 }
+    const st = { lines: 0, contour: 0, beam: 0, dust: 0, rings: 0, grid: 0, tint: 0, px: 0.5, py: 0.5, lx: 0.5, ly: 0.5, spin: 0 }
     const ptr = { x: 0.5, y: 0.5 }
     const onMove = (e: PointerEvent) => {
       ptr.x = e.clientX / window.innerWidth
@@ -89,13 +91,18 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
       lastT = now
       const f = story.pose.field
       const k = reduce ? 40 : 2.2
-      st.lines = damp(st.lines, f.lines, k, dt)
-      st.contour = damp(st.contour, f.contour, k, dt)
-      st.beam = damp(st.beam, f.beam, k, dt)
-      st.dust = damp(st.dust, f.dust, k, dt)
-      st.rings = damp(st.rings, f.rings, k, dt)
-      st.grid = damp(st.grid, f.grid, k, dt)
-      st.tint = damp(st.tint, story.pose.tint, k, dt)
+      // lighting mode and the finale bias the sheet's own character
+      const mode = play.state.mode
+      const calm = 1 - 0.78 * bridge.light.calm
+      const bias = mode === 'night' ? { l: 0.55, b: 1.7, d: 1.8, r: 0, g: 0, t: 0.7 } : mode === 'signal' ? { l: 1.6, b: 0.8, d: 1, r: 0.7, g: 0.6, t: 1 } : { l: 1, b: 1, d: 1, r: 0, g: 0, t: 0 }
+      st.lines = damp(st.lines, Math.min(1.3, f.lines * bias.l * calm + (mode === 'signal' ? 0.35 : 0)), k, dt)
+      st.contour = damp(st.contour, f.contour * calm, k, dt)
+      st.beam = damp(st.beam, Math.min(1.3, f.beam * bias.b), k, dt)
+      st.dust = damp(st.dust, f.dust * bias.d * calm, k, dt)
+      st.rings = damp(st.rings, Math.min(1.2, f.rings + bias.r), k, dt)
+      st.grid = damp(st.grid, Math.min(1.2, f.grid + bias.g), k, dt)
+      st.tint = damp(st.tint, Math.min(1, story.pose.tint + bias.t), k, dt)
+      st.spin = damp(st.spin, bridge.light.spin, 4, dt)
       st.px = damp(st.px, ptr.x, 3, dt)
       st.py = damp(st.py, ptr.y, 3, dt)
       st.lx = damp(st.lx, bridge.light.x, 5, dt)
@@ -115,6 +122,16 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
       gl.uniform1f(U.rings, st.rings)
       gl.uniform1f(U.grid, st.grid)
       gl.uniform1f(U.intro, intro)
+      gl.uniform1f(U.boost, bridge.light.boost)
+      gl.uniform1f(U.spin, st.spin)
+      const rips = play.ripples
+      const nowMs = performance.now()
+      const rp = [U.ripA, U.ripB, U.ripC]
+      for (let i = 0; i < 3; i++) {
+        const r = rips[rips.length - 1 - i]
+        if (r && animated) gl.uniform3f(rp[i], r.x, r.y, (nowMs - r.at) / 1000)
+        else gl.uniform3f(rp[i], 0, 0, -1)
+      }
       gl.drawArrays(gl.TRIANGLES, 0, 3)
     }
 
@@ -149,6 +166,15 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
       for (let i = 1; i <= 6; i++) window.setTimeout(() => draw(performance.now() + i * 100), i * 80)
     }
 
+    // A press on empty space sends a ring across the background. Not on controls, copy, or the drag zones.
+    const onPress = (e: PointerEvent) => {
+      if (e.button !== 0 || reduce) return
+      const t = e.target as HTMLElement | null
+      if (!t || t.closest('a, button, input, label, select, textarea, [role="slider"], [data-drag-zone], [data-no-ripple], header, nav, p, h1, h2, h3, h4, li, svg, canvas, form, fieldset')) return
+      play.addRipple(e.clientX / window.innerWidth, 1 - e.clientY / window.innerHeight)
+    }
+    window.addEventListener('pointerdown', onPress, { passive: true })
+
     const lost = (e: Event) => {
       e.preventDefault()
       cancelAnimationFrame(raf)
@@ -160,6 +186,7 @@ export function FieldCanvas({ bridge }: { bridge: SceneBridge }) {
       stopWake?.()
       window.removeEventListener('resize', resize)
       window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerdown', onPress)
       canvas.removeEventListener('webglcontextlost', lost)
       gl.deleteProgram(prog)
       gl.deleteShader(vs)

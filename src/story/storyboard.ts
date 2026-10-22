@@ -97,10 +97,12 @@ export const mk = (o: Partial<Omit<Shot, 'field'>> & { id: string; field?: Field
 })
 
 const HALF_PI = Math.PI / 2
+/** Markers on the title sheet: quiet until hovered; each opens the part inspector. */
+const HERO_MARKS: HotspotId[] = ['face', 'light', 'dial', 'pivot', 'mic']
 
 /** Landscape / desktop. */
 export const shotsWide: Shot[] = [
-  mk({ id: 'hero', x: 0, y: 0.06, scale: 0.9, rotX: 0.08, rotY: 0.55, glow: 0.9, orbit: 1, field: F(0.35, 0.15, 0.55, 0.65) }),
+  mk({ id: 'hero', x: 0, y: 0.06, scale: 0.9, rotX: 0.08, rotY: 0.55, glow: 0.9, orbit: 1, field: F(0.35, 0.15, 0.55, 0.65), hotspots: HERO_MARKS }),
   mk({ id: 'silence', x: 0.24, y: 0, scale: 1.12, rotX: 0.04, rotY: -1.18, glow: 1.0, orbit: 0.25, field: F(0.9, 0.1, 0.3, 0.4) }),
   mk({ id: 'form-front', x: 0.24, y: 0.0, scale: 1.0, rotX: 0.0, rotY: 0.0, glow: 0.6, orbit: 0.0, field: F(0.05, 0.0, 0.15, 0.2) }),
   mk({ id: 'form-profile', x: 0.24, y: 0.0, scale: 1.0, rotX: 0.0, rotY: -HALF_PI, glow: 0.6, orbit: 0.0, field: F(0.05, 0.0, 0.15, 0.2) }),
@@ -122,7 +124,7 @@ export const shotsWide: Shot[] = [
  * `scale` is multiplied by (viewport width / 3) at runtime, so 1.0 ≈ "as wide as a phone allows".
  */
 export const shotsTall: Shot[] = [
-  mk({ id: 'hero', y: 0.1, scale: 1.0, rotX: 0.06, rotY: 0.5, glow: 0.9, orbit: 1, field: F(0.3, 0.12, 0.5, 0.6) }),
+  mk({ id: 'hero', y: 0.1, scale: 1.0, rotX: 0.06, rotY: 0.5, glow: 0.9, orbit: 1, field: F(0.3, 0.12, 0.5, 0.6), hotspots: HERO_MARKS }),
   mk({ id: 'silence', y: 0.2, scale: 1.05, rotX: 0.04, rotY: -1.18, orbit: 0.2, field: F(0.8, 0.1, 0.3, 0.4) }),
   mk({ id: 'form-front', y: 0.2, scale: 0.95, rotX: 0.0, rotY: 0.0, glow: 0.6, field: F(0.05, 0.0, 0.15, 0.2) }),
   mk({ id: 'form-profile', y: 0.2, scale: 0.95, rotX: 0.0, rotY: -HALF_PI, glow: 0.6, field: F(0.05, 0.0, 0.15, 0.2) }),

@@ -170,6 +170,8 @@ class StoryStore {
       o.fy = h.fy
       o.solo = h.solo
       o.tint = h.tint
+      o.orbit = h.orbit
+      Object.assign(o.field, h.field)
       const hw: Partial<Record<HotspotId, number>> = {}
       for (const k of h.hotspots) hw[k] = 1
       this.weights = hw

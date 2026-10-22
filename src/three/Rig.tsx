@@ -7,11 +7,16 @@ import { clamp, damp, lerp } from '../lib/math'
 import { makeSpring, springActive, stepSpring } from '../lib/spring'
 import { easeFn, intro as INTRO, sceneSpring } from '../motion/tokens'
 import { HOTSPOT_IDS, type SceneBridge } from '../story/hotspots'
+import { play } from '../play/store'
 import { story } from '../story/store'
 import type { HotspotId } from '../story/storyboard'
 import { Headphone, type AnchorMap, type HeadphoneDrive } from './Headphone'
 import { forcedTier, type TierConfig } from './quality'
 
+const smoothstep01 = (x: number) => {
+  const t = clamp(x)
+  return t * t * (3 - 2 * t)
+}
 const BASE_Z = 9.5 // camera distance the storyboard's x/y fractions are defined at
 const FOV = 26
 
@@ -60,10 +65,14 @@ export function Rig({
     camX: makeSpring(), camY: makeSpring(),
     tiltX: makeSpring(), tiltY: makeSpring(),
     lampX: makeSpring(), lampY: makeSpring(),
-    drag: makeSpring(),
+    drag: makeSpring(), pitch: makeSpring(),
   })
-  const dragging = useRef<{ startX: number; base: number } | null>(null)
+  const dragging = useRef<{ startX: number; startY: number; base: number; baseP: number; pitch: boolean; moved: number; lastX: number; lastT: number; vel: number } | null>(null)
   const dragTarget = useRef(0)
+  const pitchTarget = useRef(0)
+  const turnedRef = useRef(false)
+  const lastActive = useRef('')
+  const mood = useRef({ env: 1, lamp: 1, tint: 0, glow: 0 })
   const idleAmt = useRef(0)
   const idleTimer = useRef(0)
   const perf = useRef({ acc: 0, n: 0, slow: 0, fast: 0 })
@@ -80,20 +89,37 @@ export function Rig({
       pointer.current.x = (e.clientX / window.innerWidth) * 2 - 1
       pointer.current.y = (e.clientY / window.innerHeight) * 2 - 1
       const d = dragging.current
-      if (d) dragTarget.current = clamp(d.base + (e.clientX - d.startX) * 0.0075, -1.8, 1.8)
+      if (d) {
+        dragTarget.current = clamp(d.base + (e.clientX - d.startX) * 0.0075, -40, 40)
+        if (d.pitch) pitchTarget.current = clamp(d.baseP + (e.clientY - d.startY) * 0.004, -0.42, 0.42)
+        d.moved = Math.max(d.moved, Math.hypot(e.clientX - d.startX, e.clientY - d.startY))
+        const now = performance.now()
+        if (now > d.lastT) d.vel = d.vel * 0.6 + (((e.clientX - d.lastX) * 0.0075) / ((now - d.lastT) / 1000)) * 0.4
+        d.lastX = e.clientX
+        d.lastT = now
+      }
       invalidate()
     }
     const onDown = (e: PointerEvent) => {
       // Drag-to-inspect starts only inside an explicit drag zone (see DragZone.tsx).
       if (e.pointerType === 'mouse' && e.button !== 0) return
       if (!(e.target as HTMLElement | null)?.closest?.('[data-drag-zone]')) return
-      dragging.current = { startX: e.clientX, base: sp.current.drag.x }
+      if (play.state.explore) return
+      dragging.current = {
+        startX: e.clientX, startY: e.clientY, base: dragTarget.current, baseP: pitchTarget.current,
+        pitch: e.pointerType !== 'touch', moved: 0, lastX: e.clientX, lastT: performance.now(), vel: 0,
+      }
       invalidate()
     }
     const onUp = () => {
-      if (!dragging.current) return
+      const d = dragging.current
+      if (!d) return
       dragging.current = null
-      dragTarget.current = 0 // spring back to the storyboard pose
+      // the view stays where the visitor left it (with a little flick); Reset / scrolling away returns it
+      if (d.moved > 12) {
+        dragTarget.current += clamp(d.vel, -6, 6) * 0.16
+        play.found('turn')
+      }
       invalidate()
     }
     window.addEventListener('pointermove', onMove, { passive: true })
@@ -102,6 +128,7 @@ export function Rig({
     window.addEventListener('pointercancel', onUp, { passive: true })
     window.addEventListener('resize', wake)
     const off = story.onUpdate(wake)
+    const offPlay = play.onWake(wake)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerdown', onDown)
@@ -109,6 +136,7 @@ export function Rig({
       window.removeEventListener('pointercancel', onUp)
       window.removeEventListener('resize', wake)
       off()
+      offPlay()
       window.clearTimeout(idleTimer.current)
     }
   }, [invalidate])
@@ -151,6 +179,55 @@ export function Rig({
       poseDelta += Math.abs(c[key] - target)
     }
 
+    // 2b — the visitor's own view: keyboard nudges, reset, and automatic return when the story moves on
+    const inp = play.input
+    if (inp.yaw) {
+      dragTarget.current += inp.yaw
+      inp.yaw = 0
+    }
+    if (story.activeId !== lastActive.current) {
+      lastActive.current = story.activeId
+      inp.reset = true
+    }
+    if (inp.reset) {
+      inp.reset = false
+      const turns = Math.round(k.drag.x / (Math.PI * 2)) * Math.PI * 2
+      k.drag.x -= turns
+      dragTarget.current = 0
+      pitchTarget.current = 0
+    }
+    const turned = Math.abs(dragTarget.current) > 0.05 || Math.abs(pitchTarget.current) > 0.03
+    const yawDeg = Math.round(((((k.drag.x * 180) / Math.PI) % 360) + 360) % 360 / 5) * 5
+    if (turned !== turnedRef.current || yawDeg !== play.state.yaw) {
+      turnedRef.current = turned
+      play.setTurned(turned, yawDeg)
+    }
+
+    // 2c — one-shot sequences (light sweep, ring ignition, the finale) and the lighting mood
+    const nowMs = performance.now()
+    const ds = (nowMs - play.sweepAt) / 1800
+    const sweepOn = ds >= 0 && ds < 1
+    const sweepE = sweepOn ? Math.sin(Math.PI * ds) : 0
+    const di = (nowMs - play.igniteAt) / 2600
+    const igniteOn = di >= 0 && di < 1
+    const igniteE = igniteOn ? Math.sin(Math.PI * di) : 0
+    const dc = (nowMs - play.completeAt) / 7000
+    const finaleOn = dc >= 0 && dc < 1
+    const finaleE = finaleOn ? smoothstep01(dc / 0.15) * (1 - smoothstep01((dc - 0.8) / 0.2)) : 0
+    const spinExtra = reduced ? 0 : (igniteOn ? Math.PI * 2 * easeFn.inOut(di) : 0) + (finaleOn ? Math.PI * 2 * easeFn.inOut(dc) : 0)
+    const mode = play.state.mode
+    const mTarget = mode === 'night' ? { env: 0.3, lamp: 2.2, tint: 0.7, glow: 0.6 } : mode === 'signal' ? { env: 0.75, lamp: 1.2, tint: 1, glow: 1.1 } : { env: 1, lamp: 1, tint: 0, glow: 0 }
+    const ml = reduced ? 30 : 3
+    const m = mood.current
+    m.env = damp(m.env, mTarget.env, ml, dt)
+    m.lamp = damp(m.lamp, mTarget.lamp, ml, dt)
+    m.tint = damp(m.tint, mTarget.tint, ml, dt)
+    m.glow = damp(m.glow, mTarget.glow, ml, dt)
+    const moodMoving = Math.abs(m.env - mTarget.env) > 0.004 || Math.abs(m.tint - mTarget.tint) > 0.004
+    const playMoving = sweepOn || igniteOn || finaleOn || moodMoving
+    bridge.light.boost = Math.max(sweepE * 0.6, igniteE, finaleE * 0.5)
+    bridge.light.calm = finaleE
+
     // 3 — springs: pointer parallax, drag, lamp ---------------------------------------------
     const calm = reduced ? 0 : 1
     const px = pointer.current.x * calm
@@ -161,11 +238,12 @@ export function Rig({
     const tiltX = stepSpring(k.tiltY, py * 0.05, sceneSpring.tilt.stiffness, sceneSpring.tilt.damping, dt)
     const lampX = stepSpring(k.lampX, px * 3.4, sceneSpring.light.stiffness, sceneSpring.light.damping, dt)
     const lampY = stepSpring(k.lampY, -py * 2.2, sceneSpring.light.stiffness, sceneSpring.light.damping, dt)
-    const dragYaw = stepSpring(k.drag, reduced ? 0 : dragTarget.current, sceneSpring.drag.stiffness, sceneSpring.drag.damping, dt)
+    const dragYaw = stepSpring(k.drag, dragTarget.current, reduced ? 120 : sceneSpring.drag.stiffness, reduced ? 24 : sceneSpring.drag.damping, dt)
+    const dragPitch = stepSpring(k.pitch, pitchTarget.current, reduced ? 120 : sceneSpring.drag.stiffness, reduced ? 24 : sceneSpring.drag.damping, dt)
     const springsMoving =
       springActive(k.camX, px * 0.3) || springActive(k.camY, -py * 0.17) || springActive(k.tiltX, px * 0.1) ||
       springActive(k.tiltY, py * 0.05) || springActive(k.lampX, px * 3.4) || springActive(k.lampY, -py * 2.2) ||
-      springActive(k.drag, dragTarget.current, 0.002)
+      springActive(k.drag, dragTarget.current, 0.002) || springActive(k.pitch, pitchTarget.current, 0.002)
 
     // idle sway on poster shots (fades in/out so it never pops)
     const idle = !reduced && !introActive && isPosterShot()
@@ -191,8 +269,8 @@ export function Rig({
     )
     g.scale.setScalar(c.scale * fit * zoom)
     g.rotation.set(
-      c.rotX + tiltX + Math.sin(t * 0.45) * 0.015 * sway,
-      rotYBase + tiltY + dragYaw + Math.sin(t * 0.3) * 0.035 * sway,
+      c.rotX + tiltX + dragPitch + Math.sin(t * 0.45) * 0.015 * sway,
+      rotYBase + tiltY + dragYaw + spinExtra + Math.sin(t * 0.3) * 0.035 * sway,
       c.rotZ,
     )
     inner.current.position.set(-fxEff, -c.fy, 0)
@@ -205,15 +283,17 @@ export function Rig({
     camera.updateMatrixWorld()
 
     // light: environment intensity + rotation (highlights sweep as the story advances)
-    scene.environmentIntensity = light
-    scene.environmentRotation.y = -c.rotY * 0.45 + (story.index + story.t) * 0.28 + px * 0.2
+    scene.environmentIntensity = light * m.env * (1 + 0.6 * sweepE) * (1 - 0.72 * finaleE)
+    scene.environmentRotation.y =
+      -c.rotY * 0.45 + (story.index + story.t) * 0.28 + px * 0.2 + (reduced ? (sweepOn ? 1.1 : 0) : sweepOn ? easeFn.inOut(ds) * Math.PI : 0)
     if (lamp.current) {
-      lamp.current.position.set(lampX, lampY + 0.6, 2.8)
-      lamp.current.intensity = cfg.pointLight ? 9 * light : 0
+      const swx = sweepOn && !reduced ? lerp(-5, 5, easeFn.inOut(ds)) : 0
+      lamp.current.position.set(lampX + swx, lampY + 0.6, 2.8)
+      lamp.current.intensity = cfg.pointLight ? (9 * m.lamp + 30 * sweepE + 14 * finaleE) * light : 0
     }
     drive.current.explode = c.explode
     drive.current.solo = c.solo
-    drive.current.glow = c.glow * ignite
+    drive.current.glow = (c.glow + m.glow + 1.4 * sweepE + 2.2 * igniteE + 1.8 * finaleE) * ignite
 
     // 5 — DOM: hotspots + light pool ----------------------------------------------------
     g.updateMatrixWorld(true)
@@ -250,6 +330,8 @@ export function Rig({
         el.toggleAttribute('inert', !on)
       }
     }
+    const tintEff = clamp(c.tint + m.tint)
+    bridge.light.spin = dragYaw + spinExtra
     // light pool follows the product's screen position, crossfading neutral ↔ cool by `tint`
     v.set(0, 0, 0)
     g.localToWorld(v)
@@ -257,11 +339,11 @@ export function Rig({
     const pool = `translate3d(${(v.x * halfW).toFixed(1)}px, ${(-v.y * halfH).toFixed(1)}px, 0)`
     if (bridge.poolNeutral) {
       bridge.poolNeutral.style.transform = pool
-      bridge.poolNeutral.style.opacity = ((1 - c.tint) * light).toFixed(3)
+      bridge.poolNeutral.style.opacity = ((1 - tintEff) * light).toFixed(3)
     }
     if (bridge.poolCool) {
       bridge.poolCool.style.transform = pool
-      bridge.poolCool.style.opacity = (c.tint * light).toFixed(3)
+      bridge.poolCool.style.opacity = (tintEff * light).toFixed(3)
     }
 
     // light position for the background field (0..1, y up)
@@ -351,7 +433,7 @@ export function Rig({
 
     // 8 — on-demand rendering: ask for another frame only while something is still moving ----
     const moving =
-      introActive || poseDelta > 0.0008 || springsMoving || !!dragging.current || sway > 0.01 || (idle && !reduced)
+      introActive || playMoving || poseDelta > 0.0008 || springsMoving || !!dragging.current || sway > 0.01 || (idle && !reduced)
     if (moving) {
       if (idle && !introActive && poseDelta <= 0.0008 && !springsMoving) {
         // poster idle: ~30 fps is plenty for a slow sway

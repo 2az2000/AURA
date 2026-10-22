@@ -7,6 +7,8 @@ import { stagger } from '../../motion/tokens'
 import { SheetMarks } from '../../graphics/SheetMarks'
 import { prefetchProduct } from '../../product/lazy'
 import { Link } from '../../router'
+import { HeroTools } from '../HeroTools'
+import { usePlay } from '../../play/store'
 import { DragZone } from '../ui/DragZone'
 
 /**
@@ -48,6 +50,7 @@ function Letter({ ch, i }: { ch: string; i: number }) {
  */
 export function Hero() {
   const { scrollY } = useScroll()
+  const exploring = usePlay((s) => !!s.explore)
   const wordmarkY = useTransform(scrollY, [0, 900], [0, 260])
   const tagline = useIntroSegment(1.25, 2.25, 'linear')
   const kicker = useIntroSegment(1.5, 2.1)
@@ -90,7 +93,10 @@ export function Hero() {
       </motion.p>
 
       {/* Foreground */}
-      <div className="layer-fg wrap pointer-events-none flex flex-1 flex-col pb-[calc(var(--text-mega)*0.5)] pt-24 portrait:pb-[calc(var(--text-mega)*0.62)]">
+      <div
+        inert={exploring}
+        className={`layer-fg wrap pointer-events-none flex flex-1 flex-col pb-[calc(var(--text-mega)*0.5)] pt-24 transition-opacity duration-500 portrait:pb-[calc(var(--text-mega)*0.62)] ${exploring ? 'opacity-0' : ''}`}
+      >
         <motion.p className="label" style={{ opacity: kicker }}>
           {hero.kicker}
         </motion.p>
@@ -126,7 +132,8 @@ export function Hero() {
         </div>
       </div>
 
-      <DragZone hint className="left-1/2 top-[9svh] h-[52svh] w-[min(56vw,46rem)] -translate-x-1/2 portrait:hidden" />
+      <DragZone hint slider className="left-1/2 top-[9svh] h-[52svh] w-[min(56vw,46rem)] -translate-x-1/2 portrait:hidden" />
+      <HeroTools />
     </section>
   )
 }

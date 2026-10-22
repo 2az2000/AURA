@@ -35,7 +35,7 @@ export interface SceneBridge {
   /** sound rings emanating from the cup face */
   rings: HTMLElement | null
   /** product screen position, 0..1 (y up), written by the Rig, read by the background field */
-  light: { x: number; y: number }
+  light: { x: number; y: number; /** 0..1 pulse of a one-shot sequence */ boost: number; /** product turn in radians; moves the field */ spin: number; /** 0..1 finale calm */ calm: number }
   /** live product orientation (radians) / scale, written by the Rig; read by readouts */
   stats: { rotY: number; rotX: number; scale: number }
 }

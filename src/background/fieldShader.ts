@@ -31,6 +31,11 @@ uniform float uDust;
 uniform float uRings;
 uniform float uGrid;
 uniform float uIntro;
+uniform float uBoost;   // 0..1 pulse of a one-shot sequence (light sweep, ring ignition)
+uniform float uSpin;    // product turn (rad): the lines and grid follow it
+uniform vec3  uRipA;    // click ripples: x, y (0..1, y up), age in seconds (<0 = unused)
+uniform vec3  uRipB;
+uniform vec3  uRipC;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -57,7 +62,7 @@ void main() {
   vec2 lp = vec2((uLight.x - 0.5) * asp, uLight.y - 0.5);
   float d = length(p - lp);
   vec3 pool = mix(vec3(0.085, 0.098, 0.12), vec3(0.05, 0.1, 0.17), uTint);
-  col += pool * exp(-d * d * 3.4);
+  col += pool * exp(-d * d * 3.4) * (1.0 + uBoost * 1.1);
 
   // 2 — beam through fog
   vec2 bo = vec2(-0.62 * asp, 0.62);
@@ -67,14 +72,14 @@ void main() {
   float along = dot(p - bo, dir);
   float fog = fbm(vec2(along * 2.4 - uTime * 0.05, across * 3.0) + uScroll * 0.15);
   float beam = exp(-across * across * 16.0) * smoothstep(-0.1, 0.55, along) * (0.4 + 1.1 * fog);
-  col += mix(vec3(0.55, 0.66, 0.88), vec3(0.42, 0.62, 1.0), uTint) * beam * uBeam * 0.13;
+  col += mix(vec3(0.55, 0.66, 0.88), vec3(0.42, 0.62, 1.0), uTint) * beam * uBeam * 0.13 * (1.0 + uBoost * 1.4);
 
   // 3 — flowing frequency lines
   float lines = 0.0;
   for (int i = 0; i < 14; i++) {
     float fi = float(i);
     float y = -0.56 + fi * 0.086 + 0.018 * sin(fi * 1.7);
-    float ph = uTime * (0.22 + 0.017 * fi) + fi * 1.3;
+    float ph = uTime * (0.22 + 0.017 * fi) + fi * 1.3 + uSpin * (0.7 + 0.05 * fi);
     vec2 q = vec2(p.x, y);
     float near = exp(-dot(q - ptr, q - ptr) * 7.0);
     float amp = (0.016 + 0.05 * uLines) * (0.6 + 0.4 * sin(fi * 2.1)) * (1.0 + near * 1.8);
@@ -115,13 +120,28 @@ void main() {
   // 6 — sound ripples: concentric rings travelling outward from the product
   float rr = length(p - lp);
   float ripple = pow(0.5 + 0.5 * sin(rr * 36.0 - uTime * 1.3), 16.0) * exp(-rr * 1.9);
-  col += vec3(0.42, 0.62, 1.0) * ripple * uRings * 0.3;
+  col += vec3(0.42, 0.62, 1.0) * ripple * (uRings + uBoost * 0.9) * 0.3;
 
   // 7 — technical grid that fades out from the product
-  vec2 gf = fract((p - lp) * 9.0);
+  float gc = cos(uSpin * 0.35), gs = sin(uSpin * 0.35);
+  vec2 gq = mat2(gc, -gs, gs, gc) * (p - lp);
+  vec2 gf = fract(gq * 9.0);
   vec2 gd = min(gf, 1.0 - gf);
   float gline = 1.0 - smoothstep(0.0, 0.035, min(gd.x, gd.y));
   col += vec3(0.6, 0.72, 0.9) * gline * exp(-rr * rr * 1.2) * uGrid * 0.07;
+
+  // 8 — click ripples: one thin ring per press, travelling outward and fading
+  for (int r = 0; r < 3; r++) {
+    vec3 rp = r == 0 ? uRipA : (r == 1 ? uRipB : uRipC);
+    if (rp.z >= 0.0 && rp.z < 3.2) {
+      vec2 c0 = vec2((rp.x - 0.5) * asp, rp.y - 0.5);
+      float rad = rp.z * 0.5;
+      float dd = length(p - c0) - rad;
+      float life = 1.0 - rp.z / 3.2;
+      col += vec3(0.48, 0.68, 1.0) * exp(-dd * dd * 900.0) * life * life * 0.42;
+      col += vec3(0.35, 0.55, 0.95) * exp(-dd * dd * 90.0) * life * life * 0.06;
+    }
+  }
 
   // vignette + dither (kills banding in the dark gradients)
   col *= 1.0 - 0.55 * dot(uv - 0.5, uv - 0.5);

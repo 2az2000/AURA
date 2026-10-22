@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAnimationFrame, useReducedMotion, useScroll } from 'motion/react'
 import { clamp, smooth } from '../lib/math'
 
@@ -18,6 +18,21 @@ export function WaveRibbon({ className = '' }: { className?: string }) {
   const paths = useRef<(SVGPathElement | null)[]>([])
   const reduce = useReducedMotion()
   const { scrollYProgress } = useScroll({ target: box, offset: ['start 90%', 'start 25%'] })
+  // The pointer quiets the noise where it passes: a local dip in amplitude that follows it along the ribbon.
+  const ptr = useRef({ u: 0.5, hot: 0, on: false })
+  useEffect(() => {
+    if (reduce) return
+    const el = box.current
+    const move = (e: PointerEvent) => {
+      const r = el?.getBoundingClientRect()
+      if (!r) return
+      const inside = e.clientY > r.top - 40 && e.clientY < r.bottom + 40 && e.pointerType !== 'touch'
+      ptr.current.on = inside
+      if (inside) ptr.current.u = (e.clientX - r.left) / r.width
+    }
+    window.addEventListener('pointermove', move, { passive: true })
+    return () => window.removeEventListener('pointermove', move)
+  }, [reduce])
 
   useAnimationFrame((time) => {
     const r = box.current?.getBoundingClientRect()
@@ -25,6 +40,8 @@ export function WaveRibbon({ className = '' }: { className?: string }) {
     const t = reduce ? 0 : time / 1000
     const calm = reduce ? 1 : smooth(clamp(scrollYProgress.get()))
     const amp = (1 - calm) * 0.92 + 0.0
+    const q = ptr.current
+    q.hot += ((q.on ? 1 : 0) - q.hot) * 0.08
     for (let k = 0; k < RIBBONS; k++) {
       const el = paths.current[k]
       if (!el) continue
@@ -33,7 +50,7 @@ export function WaveRibbon({ className = '' }: { className?: string }) {
       for (let i = 0; i <= STEPS; i++) {
         const x = (i / STEPS) * W
         const u = i / STEPS
-        const env = Math.sin(u * Math.PI) // pinch at both ends
+        const env = Math.sin(u * Math.PI) * (1 - 0.92 * q.hot * Math.exp(-(((u - q.u) / 0.09) ** 2))) // pinch at both ends; quiet under the pointer
         const w =
           Math.sin(u * 11 + t * (0.7 + f * 0.4) + k * 0.9) * 0.55 +
           Math.sin(u * 23 - t * (1.1 + f * 0.3) + k) * 0.28 +
